@@ -1,160 +1,291 @@
-// MAIN
+var ready = false;
+var eurecaServer;
+//this function will handle client communication with the server
+var cursors;
+var ship;
+var player;
+var playerId = 0;
+var bulletTime = 0;
+var game;
 
-// standard global variables
 
-// custom global variables
+var eurecaClientSetup = function() {
+    //create an instance of eureca.io client
+    var eurecaClient = new Eureca.Client();
+
+    eurecaClient.ready(function(proxy) {
+        eurecaServer = proxy;
+    });
 
 
+    //methods defined under "exports" namespace become available in the server side
 
-alan = function() {
-
-    var container, scene, camera, renderer, controls, stats;
-    var keyboard = new THREEx.KeyboardState();
-    var clock = new THREE.Clock();
-    var ship;
-
-    // FUNCTIONS        
-    init = function() {
-
-        // SCENE
-        scene = new THREE.Scene();
-
-        // CAMERA
-        var SCREEN_WIDTH = window.innerWidth,
-            SCREEN_HEIGHT = window.innerHeight;
-        var VIEW_ANGLE = 45,
-            ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT,
-            NEAR = 0.1,
-            FAR = 20000;
-        camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-        scene.add(camera);
-        camera.position.set(0, 100, 0);
-        camera.lookAt(scene.position);
-
-        // RENDERER
-        if (Detector.webgl)
-            renderer = new THREE.WebGLRenderer({
-                antialias: true
-            });
-        else
-            renderer = new THREE.CanvasRenderer();
-        renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
-        container = document.body;
-        container.appendChild(renderer.domElement);
-
-        // EVENTS
-        THREEx.WindowResize(renderer, camera);
-        THREEx.FullScreen.bindKey({
-            charCode: 'm'.charCodeAt(0)
-        });
-
-        // CONTROLS
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-        // STATS
-        stats = new Stats();
-        stats.domElement.style.position = 'absolute';
-        stats.domElement.style.bottom = '0px';
-        stats.domElement.style.zIndex = 100;
-        container.appendChild(stats.domElement);
-
-        ;
-        (function() {
-            // add a ambient light
-            var light = new THREE.AmbientLight(0xffffff)
-            scene.add(light)
-            // add a light in front
-            var light = new THREE.DirectionalLight('white', 10)
-            light.position.set(0.5, 0.5, 2)
-            scene.add(light)
-            // add a light behind
-            var light = new THREE.DirectionalLight('white', 10)
-            light.position.set(-0.5, -0.5, -2)
-            scene.add(light)
-        })()
-
-        addShip();
+    eurecaClient.exports.setId = function(id) {
+        //create() is moved here to make sure nothing is created before uniq id assignation
+        playerId = id;
+        create();
+        eurecaServer.handshake();
+        ready = true;
     }
 
-
-    addShip = function() {
-
-        THREE.Loader.Handlers.add(/\.dds$/i, new THREE.DDSLoader());
-
-        var loader = new THREE.OBJMTLLoader();
-        loader.load('models/SpaceFighter03/SpaceFighter03.obj', 'models/SpaceFighter03/SpaceFighter03.mtl', function(object) {
-            object.position.y = 0;
-            ship = object;
-            scene.add(ship);
-            stars(scene);
-        });
-    }
-
-
-    animate = function() {
-        requestAnimationFrame(animate);
-        render();
-        update();
-    }
-
-    update = function() {
-        var delta = clock.getDelta(); // seconds.
-        var moveDistance = 200 * delta; // 200 pixels per second
-        var rotateAngle = Math.PI / 2 * delta; // pi/2 radians (90 degrees) per second
-
-        // local transformations
-
-        // move forwards/backwards/left/right
-        if (keyboard.pressed("S"))
-            ship.translateZ(-moveDistance);
-        if (keyboard.pressed("W"))
-            ship.translateZ(moveDistance);
-        if (keyboard.pressed("Q"))
-            ship.translateX(-moveDistance);
-        if (keyboard.pressed("E"))
-            ship.translateX(moveDistance);
-
-        // rotate left/right/up/down
-        var rotation_matrix = new THREE.Matrix4().identity();
-        if (keyboard.pressed("A"))
-            ship.rotateOnAxis(new THREE.Vector3(0, 1, 0), rotateAngle);
-        if (keyboard.pressed("D"))
-            ship.rotateOnAxis(new THREE.Vector3(0, 1, 0), -rotateAngle);
-        if (keyboard.pressed("R"))
-            ship.rotateOnAxis(new THREE.Vector3(1, 0, 0), rotateAngle);
-        if (keyboard.pressed("F"))
-            ship.rotateOnAxis(new THREE.Vector3(1, 0, 0), -rotateAngle);
-
-        if (keyboard.pressed("Z")) {
-            ship.position.set(0, 25.1, 0);
-            ship.rotation.set(0, 0, 0);
+    eurecaClient.exports.kill = function(id) {
+        if (tanksList[id]) {
+            tanksList[id].kill();
+            console.log('killing ', id, tanksList[id]);
         }
+    }
 
-        var relativeCameraOffset = new THREE.Vector3(0, 100, 0);
+    eurecaClient.exports.spawnEnemy = function(i, x, y) {
 
-        if (ship) {
-            var cameraOffset = relativeCameraOffset.applyMatrix4(ship.matrixWorld);
+        console.log(i + playerId);
+        if (i == playerId) return; //this is me
 
-            camera.position.x = cameraOffset.x;
-            camera.position.y = cameraOffset.y;
-            camera.position.z = cameraOffset.z;
-            //camera.lookAt(ship.position);
+        console.log('SPAWN');
+        var ship = new Ship(i, game, ship);
+        shipList[i] = ship;
+    }
 
-            camera.updateMatrix();
-            camera.updateProjectionMatrix();
+    eurecaClient.exports.updateState = function(id, state) {
+        if (shipList[id]) {
+            shipList[id].cursor = state;
+            shipList[id].ship.x = state.x;
+            shipList[id].ship.y = state.y;
+            shipList[id].update();
         }
-
-        stats.update();
     }
-
-    render = function() {
-        renderer.render(scene, camera);
-    }
-
-    return this;
 
 }
 
-var a = alan();
-a.init();
-a.animate();
+
+game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
+    preload: preload,
+    create: eurecaClientSetup,
+    update: update,
+    render: render
+});
+
+
+Ship = function(game, id, player) {
+
+    if (game == null) {
+        return;
+    }
+
+    var sprite;
+    var bullet;
+    var bullets;
+    var bulletTime = 0;
+    var alive;
+
+    this.alive = true;
+    this.game = game;
+
+    this.cursor = {
+        left: false,
+        right: false,
+        up: false,
+        fire: false
+    }
+
+    this.input = {
+        left: false,
+        right: false,
+        up: false,
+        fire: false
+    }
+
+    this.player = player
+
+    //  Our player ship
+    this.ship = game.add.sprite(300, 300, 'ship');
+    this.ship.id = id
+    this.ship.anchor.set(0.5);
+
+    //  and its physics settings
+    game.physics.enable(this.ship, Phaser.Physics.ARCADE);
+
+    this.ship.body.drag.set(100);
+    this.ship.body.maxVelocity.set(200);
+
+    //  Our ships bullets
+    bullets = game.add.group();
+    bullets.enableBody = true;
+    bullets.physicsBodyType = Phaser.Physics.ARCADE;
+
+    //  All 40 of them
+    bullets.createMultiple(40, 'bullet');
+    bullets.setAll('anchor.x', 0.5);
+    bullets.setAll('anchor.y', 0.5);
+
+
+    this.bullets = bullets;
+};
+
+
+Ship.prototype.update = function() {
+
+    var inputChanged = (
+        this.cursor.left != this.input.left ||
+        this.cursor.right != this.input.right ||
+        this.cursor.up != this.input.up ||
+        this.cursor.fire != this.input.fire
+    );
+
+
+    if (inputChanged) {
+        //Handle input change here
+        //send new values to the server        
+        if (this.ship.id == playerId) {
+            // send latest valid state to the server
+            this.input.x = this.ship.x;
+            this.input.y = this.ship.y;
+            // this.input.angle = this.tank.angle;
+            // this.input.rot = this.turret.rotation;
+            eurecaServer.handleKeys(this.input);
+        }
+    }
+
+
+    if (this.cursor.up) {
+        this.game.physics.arcade.accelerationFromRotation(this.ship.rotation, 200, this.ship.body.acceleration);
+    } else {
+        this.ship.body.acceleration.set(0);
+    }
+
+
+    // left right
+    if (this.cursor.left) {
+        this.ship.body.angularVelocity = -300;
+
+    } else if (this.cursor.right) {
+        this.ship.body.angularVelocity = 300;
+
+    } else {
+        this.ship.body.angularVelocity = 0;
+    }
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        this.fireBullet();
+    }
+
+
+    screenWrap(this.ship);
+
+    this.bullets.forEachExists(screenWrap, this);
+
+};
+
+
+
+Ship.prototype.fireBullet = function() {
+
+    if (this.game.time.now > bulletTime) {
+        bullet = this.bullets.getFirstExists(false);
+
+        if (bullet) {
+            bullet.reset(this.ship.body.x + 16, this.ship.body.y + 16);
+            bullet.lifespan = 2000;
+            bullet.rotation = this.ship.rotation;
+            this.game.physics.arcade.velocityFromRotation(this.ship.rotation, 400, bullet.body.velocity);
+            bulletTime = this.game.time.now + 50;
+        }
+    }
+
+}
+
+// var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser', {
+//     preload: preload,
+//     create: create,
+//     update: update,
+//     render: render
+// });
+
+
+function preload() {
+    game.load.image('space', 'assets/deep-space.jpg');
+    game.load.image('bullet', 'assets/bullets.png');
+    game.load.image('ship', 'assets/ship.png');
+
+}
+
+function create() {
+
+
+    //  This will run in Canvas mode, so let's gain a little speed and display
+    game.renderer.clearBeforeRender = false;
+    game.renderer.roundPixels = true;
+
+    //  We need arcade physics
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+
+    //  A spacey background
+    game.add.tileSprite(0, 0, game.width, game.height, 'space');
+
+
+    shipList = {};
+    player = new Ship(game, playerId, ship);
+    shipList[playerId] = player;
+
+    game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+}
+
+
+function update() {
+
+    if (!ready) return;
+
+    cursors = this.game.input.keyboard.createCursorKeys();
+    player.input.left = cursors.left.isDown;
+    player.input.right = cursors.right.isDown;
+    player.input.up = cursors.up.isDown;
+    // player.input.fire = game.input.activePointer.isDown;
+    // player.input.tx = game.input.x + game.camera.x;
+    // player.input.ty = game.input.y + game.camera.y;
+
+
+
+    for (var i in shipList) {
+        if (!shipList[i]) continue;
+        var curBullets = shipList[i].bullets;
+        var curShip = shipList[i].ship;
+
+        for (var j in shipList) {
+            if (!shipList[j]) continue;
+            if (j != i) {
+
+                var targetShip = shipList[j].ship;
+
+                game.physics.arcade.overlap(curBullets, targetShip, bulletHitPlayer, null, this);
+
+            }
+
+
+            if (shipList[j].alive) {
+
+                shipList[j].update();
+            }
+        }
+    }
+}
+
+function bulletHitPlayer(ship, bullet) {
+    bullet.kill();
+}
+
+function screenWrap(sprite) {
+
+    if (sprite.x < 0) {
+        sprite.x = game.width;
+    } else if (sprite.x > game.width) {
+        sprite.x = 0;
+    }
+
+    if (sprite.y < 0) {
+        sprite.y = game.height;
+    } else if (sprite.y > game.height) {
+        sprite.y = 0;
+    }
+
+}
+
+function render() {}
