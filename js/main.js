@@ -29,9 +29,9 @@ var eurecaClientSetup = function() {
     }
 
     eurecaClient.exports.kill = function(id) {
-        if (tanksList[id]) {
-            tanksList[id].kill();
-            console.log('killing ', id, tanksList[id]);
+        if (shipList[id]) {
+            shipList[id].kill();
+            console.log('killing ', id, shipList[id]);
         }
     }
 
@@ -54,10 +54,11 @@ var eurecaClientSetup = function() {
             shipList[id].cursor = state;
             shipList[id].ship.x = state.x;
             shipList[id].ship.y = state.y;
+
+            console.log(shipList[id].finishedMove());
             shipList[id].update();
         }
     }
-
 }
 
 
@@ -69,9 +70,8 @@ game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
 });
 
 
+
 Ship = function(game, id, player) {
-
-
 
     var sprite;
     var bullet;
@@ -123,6 +123,19 @@ Ship = function(game, id, player) {
     this.bullets = bullets;
 };
 
+Ship.prototype.finishedMove = function() {
+
+    var finishedMove = (
+        this.cursor.left || this.cursor.right || this.cursor.up || this.cursor.fire
+    );
+
+    return !finishedMove;
+}
+
+Ship.prototype.move = function(state) {
+    this.cursor = state;
+}
+
 
 Ship.prototype.update = function() {
 
@@ -132,20 +145,6 @@ Ship.prototype.update = function() {
         this.cursor.up != this.input.up ||
         this.cursor.fire != this.input.fire
     );
-
-
-    if (inputChanged) {
-        //Handle input change here
-        //send new values to the server        
-        if (this.ship.id == playerId) {
-            // send latest valid state to the server
-            this.input.x = this.ship.x;
-            this.input.y = this.ship.y;
-            // this.input.angle = this.tank.angle;
-            // this.input.rot = this.turret.rotation;
-            eurecaServer.handleKeys(this.input);
-        }
-    }
 
 
     if (this.cursor.up) {
@@ -175,6 +174,19 @@ Ship.prototype.update = function() {
 
     this.bullets.forEachExists(screenWrap, this);
 
+
+    if (inputChanged) {
+        //Handle input change here
+        //send new values to the server        
+        if (this.ship.id == playerId) {
+            // send latest valid state to the server
+            this.input.x = this.ship.x;
+            this.input.y = this.ship.y;
+            // this.input.angle = this.tank.angle;
+            // this.input.rot = this.turret.rotation;
+            eurecaServer.handleKeys(this.input);
+        }
+    }
 };
 
 
@@ -195,12 +207,9 @@ Ship.prototype.fireBullet = function() {
 
 }
 
-// var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser', {
-//     preload: preload,
-//     create: create,
-//     update: update,
-//     render: render
-// });
+Ship.prototype.kill = function() {
+    this.ship.kill();
+}
 
 
 function preload() {
@@ -253,17 +262,14 @@ function update() {
 
         for (var j in shipList) {
             if (!shipList[j]) continue;
+
             if (j != i) {
-
                 var targetShip = shipList[j].ship;
-
                 game.physics.arcade.overlap(curBullets, targetShip, bulletHitPlayer, null, this);
-
             }
 
 
             if (shipList[j].alive) {
-
                 shipList[j].update();
             }
         }

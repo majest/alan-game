@@ -63,16 +63,21 @@ eurecaServer.exports.handshake = function() {
             var x = clients[cc].laststate ? clients[cc].laststate.x : 0;
             var y = clients[cc].laststate ? clients[cc].laststate.y : 0;
 
+            // span on all clients
             remote.spawnEnemy(clients[cc].id, x, y);
         }
     }
 }
+
 eurecaServer.exports.handleKeys = function(keys) {
     var conn = this.connection;
     var updatedClient = clients[conn.id];
 
     for (var c in clients) {
         var remote = clients[c].remote;
+
+        console.log(keys);
+        // update on all clients
         remote.updateState(updatedClient.id, keys);
 
         //keep last known state so we can send it to new connected clients
