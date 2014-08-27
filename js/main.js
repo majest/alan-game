@@ -37,11 +37,15 @@ var eurecaClientSetup = function() {
 
     eurecaClient.exports.spawnEnemy = function(i, x, y) {
 
-        console.log(i + playerId);
+
         if (i == playerId) return; //this is me
 
+
+        console.log("current Id: " + playerId);
+        console.log("new player id: " + i);
+
         console.log('SPAWN');
-        var ship = new Ship(i, game, ship);
+        var ship = new Ship(game, i, ship);
         shipList[i] = ship;
     }
 
@@ -67,9 +71,7 @@ game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
 
 Ship = function(game, id, player) {
 
-    if (game == null) {
-        return;
-    }
+
 
     var sprite;
     var bullet;
@@ -97,18 +99,18 @@ Ship = function(game, id, player) {
     this.player = player
 
     //  Our player ship
-    this.ship = game.add.sprite(300, 300, 'ship');
+    this.ship = this.game.add.sprite(300, 300, 'ship');
     this.ship.id = id
     this.ship.anchor.set(0.5);
 
     //  and its physics settings
-    game.physics.enable(this.ship, Phaser.Physics.ARCADE);
+    this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
 
     this.ship.body.drag.set(100);
     this.ship.body.maxVelocity.set(200);
 
     //  Our ships bullets
-    bullets = game.add.group();
+    bullets = this.game.add.group();
     bullets.enableBody = true;
     bullets.physicsBodyType = Phaser.Physics.ARCADE;
 
