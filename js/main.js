@@ -139,7 +139,7 @@ Ship.prototype.update2 = function() {
     this.input.acceleration = this.ship.body.acceleration;
 
     // sent only when state changes
-    if (this.ship.id == playerId && this.movementChanged()) {
+    if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now  % 500 == 0)) {
         this.input.x = this.ship.x;
         this.input.y = this.ship.y;
         this.input.angle = this.ship.angle
@@ -151,6 +151,23 @@ Ship.prototype.update2 = function() {
     } else {
         this.ship.body.acceleration.set(0);
     }
+
+
+ // left right
+    if (this.input.left) {
+        this.ship.body.angularVelocity = -300;
+
+    } else if (this.input.right) {
+        this.ship.body.angularVelocity = 300;
+
+    } else {
+        this.ship.body.angularVelocity = 0;
+    }
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        this.fireBullet();
+    }
+
 
 
     this.alive_time++;
@@ -210,10 +227,10 @@ Ship.prototype.update = function(force) {
 
 
     // left right
-    if (this.cursor.left) {
+    if (this.input.left) {
         this.ship.body.angularVelocity = -300;
 
-    } else if (this.cursor.right) {
+    } else if (this.input.right) {
         this.ship.body.angularVelocity = 300;
 
     } else {
@@ -267,9 +284,9 @@ Ship.prototype.kill = function() {
 
 
 function preload() {
-    game.load.image('space', 'assets/white.jpg');
+    game.load.image('space', 'assets/deep-space.jpg');
     game.load.image('bullet', 'assets/bullets.png');
-    game.load.image('ship', 'assets/square.gif');
+    game.load.image('ship', 'assets/ship.png');
 
 }
 
