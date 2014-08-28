@@ -76,9 +76,12 @@ eurecaServer.exports.handleKeys = function(keys) {
     for (var c in clients) {
         var remote = clients[c].remote;
 
-        console.log(keys);
-        // update on all clients
-        remote.updateState(updatedClient.id, keys);
+        // dont brodacst your own position
+        if (updatedClient.id != c) {
+            console.log("Updating " + updatedClient.id);
+            // update on all clients
+            remote.updateState(updatedClient.id, keys);
+        }
 
         //keep last known state so we can send it to new connected clients
         clients[c].laststate = keys;

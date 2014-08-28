@@ -50,13 +50,13 @@ var eurecaClientSetup = function() {
     }
 
     eurecaClient.exports.updateState = function(id, state) {
-        if (shipList[id]) {
-            shipList[id].cursor = state;
+
+        if (shipList[id] && id != playerId) {
+            shipList[id].input = state
             shipList[id].ship.x = state.x;
             shipList[id].ship.y = state.y;
-
-            console.log(shipList[id].finishedMove());
-            shipList[id].update();
+            shipList[id].ship.angle = state.angle;
+            shipList[id].update2();
         }
     }
 }
@@ -78,16 +78,11 @@ Ship = function(game, id, player) {
     var bullets;
     var bulletTime = 0;
     var alive;
+    var last_input;
 
     this.alive = true;
     this.game = game;
-
-    this.cursor = {
-        left: false,
-        right: false,
-        up: false,
-        fire: false
-    }
+    this.alive_time = 0;
 
     this.input = {
         left: false,
@@ -96,7 +91,12 @@ Ship = function(game, id, player) {
         fire: false
     }
 
-    this.player = player
+    this.last_input = {
+        left: false,
+        right: false,
+        up: false,
+        fire: false
+    }
 
     //  Our player ship
     this.ship = this.game.add.sprite(300, 300, 'ship');
@@ -108,7 +108,58 @@ Ship = function(game, id, player) {
 
     this.ship.body.drag.set(100);
     this.ship.body.maxVelocity.set(200);
+};
 
+Ship.prototype.movementChanged = function() {
+
+
+    var inputChanged = (
+        this.last_input.left != this.input.left ||
+        this.last_input.right != this.input.right ||
+        this.last_input.up != this.input.up ||
+        this.last_input.fire != this.input.fire
+    );
+
+    // saving last state
+    if (inputChanged) {
+        this.last_input.left = this.input.left;
+        this.last_input.right = this.input.right;
+        this.last_input.up = this.input.up;
+        this.last_input.fire = this.input.fire;
+    }
+
+    return inputChanged;
+}
+
+Ship.prototype.update2 = function() {
+
+
+    // init values
+    this.input.rotation = this.ship.rotation;
+    this.input.acceleration = this.ship.body.acceleration;
+
+    // sent only when state changes
+    if (this.ship.id == playerId && this.movementChanged()) {
+        this.input.x = this.ship.x;
+        this.input.y = this.ship.y;
+        this.input.angle = this.ship.angle
+        eurecaServer.handleKeys(this.input);
+    }
+
+    if (this.input.up) {
+        this.game.physics.arcade.accelerationFromRotation(this.input.rotation, 200, this.input.acceleration);
+    } else {
+        this.ship.body.acceleration.set(0);
+    }
+
+
+    this.alive_time++;
+    screenWrap(this.ship);
+    //this.bullets.forEachExists(screenWrap, this);
+}
+
+
+Ship.prototype.addBullets = function() {
     //  Our ships bullets
     bullets = this.game.add.group();
     bullets.enableBody = true;
@@ -118,38 +169,42 @@ Ship = function(game, id, player) {
     bullets.createMultiple(40, 'bullet');
     bullets.setAll('anchor.x', 0.5);
     bullets.setAll('anchor.y', 0.5);
-
-
     this.bullets = bullets;
-};
-
-Ship.prototype.finishedMove = function() {
-
-    var finishedMove = (
-        this.cursor.left || this.cursor.right || this.cursor.up || this.cursor.fire
-    );
-
-    return !finishedMove;
-}
-
-Ship.prototype.move = function(state) {
-    this.cursor = state;
 }
 
 
-Ship.prototype.update = function() {
+Ship.prototype.update = function(force) {
 
-    var inputChanged = (
-        this.cursor.left != this.input.left ||
-        this.cursor.right != this.input.right ||
-        this.cursor.up != this.input.up ||
-        this.cursor.fire != this.input.fire
-    );
+    this.alive_time++;
+    // var inputChanged = (
+    //     this.cursor.left != this.input.left ||
+    //     this.cursor.right != this.input.right ||
+    //     this.cursor.up != this.input.up ||
+    //     this.cursor.fire != this.input.fire
+    // );
 
+    //    if (inputChanged) {
+
+    //Handle input change here
+    //send new values to the server        
+
+    //  }
+
+    if (playerId == this.ship.id) {
+        this.cursor = this.input;
+    }
 
     if (this.cursor.up) {
-        this.game.physics.arcade.accelerationFromRotation(this.ship.rotation, 200, this.ship.body.acceleration);
+        this.game.physics.arcade.accelerationFromRotation(this.cursor.rotation, 200, this.ship.body.acceleration);
+
+        if (playerId != this.ship.id) {
+            console.log('acceleration');
+        }
+
     } else {
+        if (playerId != this.ship.id) {
+            console.log('stop');
+        }
         this.ship.body.acceleration.set(0);
     }
 
@@ -170,23 +225,21 @@ Ship.prototype.update = function() {
     }
 
 
+    if (this.ship.id == playerId && this.alive_time % 10 == 0) {
+
+        this.input.x = this.ship.x;
+        this.input.y = this.ship.y;
+        this.input.angle = this.ship.angle
+        this.input.rotation = this.ship.rotation
+        // this.input.angle = this.tank.angle;
+        // this.input.rot = this.turret.rotation;
+        eurecaServer.handleKeys(this.input);
+    }
+
     screenWrap(this.ship);
 
     this.bullets.forEachExists(screenWrap, this);
 
-
-    if (inputChanged) {
-        //Handle input change here
-        //send new values to the server        
-        if (this.ship.id == playerId) {
-            // send latest valid state to the server
-            this.input.x = this.ship.x;
-            this.input.y = this.ship.y;
-            // this.input.angle = this.tank.angle;
-            // this.input.rot = this.turret.rotation;
-            eurecaServer.handleKeys(this.input);
-        }
-    }
 };
 
 
@@ -208,14 +261,15 @@ Ship.prototype.fireBullet = function() {
 }
 
 Ship.prototype.kill = function() {
+    delete shipList[this.ship.id];
     this.ship.kill();
 }
 
 
 function preload() {
-    game.load.image('space', 'assets/deep-space.jpg');
+    game.load.image('space', 'assets/white.jpg');
     game.load.image('bullet', 'assets/bullets.png');
-    game.load.image('ship', 'assets/ship.png');
+    game.load.image('ship', 'assets/square.gif');
 
 }
 
@@ -254,7 +308,6 @@ function update() {
     // player.input.ty = game.input.y + game.camera.y;
 
 
-
     for (var i in shipList) {
         if (!shipList[i]) continue;
         var curBullets = shipList[i].bullets;
@@ -270,7 +323,7 @@ function update() {
 
 
             if (shipList[j].alive) {
-                shipList[j].update();
+                shipList[j].update2();
             }
         }
     }
