@@ -1,6 +1,6 @@
 # Alan game
 
-This is my attempt in creating multiplayer space game based on [phaser.io](http://phaser.io/) and one of the examples provided. I refactored the game so it can handle multiplayer
+This is my attempt in creating multiplayer space game based on [phaser.io](http://phaser.io/) and one of the examples provided. I refactored the example so it can handle multiplayer
 
 I would like this game to grow to massive multiplay space-trading game.. perhaps one day.
 
