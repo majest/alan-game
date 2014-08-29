@@ -4,6 +4,8 @@ This is my attempt in creating multiplayer space game based on [phaser.io](http:
 
 I would like this game to grow to massive multiplay space-trading game.. perhaps one day.
 
+Pull requests are very welcomed
+
 ## Installation 
 
 $>npm install
