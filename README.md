@@ -17,3 +17,5 @@ Use arrows to move
 ## Multiplayer
 
 At the moment multiplayer is handled by eureca.io. Player syncing mechanism should be improved
+
+![screenshot](https://raw.githubusercontent.com/majest/alan-game/master/screenshot.png)
