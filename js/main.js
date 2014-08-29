@@ -7,7 +7,7 @@ var player;
 var playerId = 0;
 var bulletTime = 0;
 var game;
-
+var space;
 
 var eurecaClientSetup = function() {
     //create an instance of eureca.io client
@@ -37,14 +37,9 @@ var eurecaClientSetup = function() {
 
     eurecaClient.exports.spawnEnemy = function(i, x, y) {
 
-
         if (i == playerId) return; //this is me
-
-
         console.log("current Id: " + playerId);
         console.log("new player id: " + i);
-
-        console.log('SPAWN');
         var ship = new Ship(game, i, ship);
         shipList[i] = ship;
     }
@@ -101,13 +96,13 @@ Ship = function(game, id, player) {
     //  Our player ship
     this.ship = this.game.add.sprite(300, 300, 'ship');
     this.ship.id = id
-    this.ship.anchor.set(0.5);
+    //this.ship.anchor.set(0.5);
 
     //  and its physics settings
-    this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
-
-    this.ship.body.drag.set(100);
-    this.ship.body.maxVelocity.set(200);
+    // this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
+    this.game.physics.p2.enable(this.ship);
+    this.ship.body.setZeroRotation();
+    // this.ship.body.drag.set(100);
 };
 
 Ship.prototype.movementChanged = function() {
@@ -135,11 +130,11 @@ Ship.prototype.update2 = function() {
 
 
     // init values
-    this.input.rotation = this.ship.rotation;
-    this.input.acceleration = this.ship.body.acceleration;
+    // this.input.rotation = this.ship.rotation;
+    // this.input.acceleration = this.ship.body.acceleration;
 
     // sent only when state changes
-    if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now  % 500 == 0)) {
+    if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now % 500 == 0)) {
         this.input.x = this.ship.x;
         this.input.y = this.ship.y;
         this.input.angle = this.ship.angle
@@ -147,31 +142,36 @@ Ship.prototype.update2 = function() {
     }
 
     if (this.input.up) {
-        this.game.physics.arcade.accelerationFromRotation(this.input.rotation, 200, this.input.acceleration);
+        this.ship.body.thrust(100);
     } else {
-        this.ship.body.acceleration.set(0);
+        this.ship.body.setZeroRotation();
     }
 
 
- // left right
+    // left right
     if (this.input.left) {
-        this.ship.body.angularVelocity = -300;
+        this.ship.body.rotateLeft(100);
 
     } else if (this.input.right) {
-        this.ship.body.angularVelocity = 300;
+        this.ship.body.rotateRight(100);
 
     } else {
-        this.ship.body.angularVelocity = 0;
+        this.ship.body.setZeroRotation();
     }
 
-    if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
-        this.fireBullet();
+    // if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+    //     this.fireBullet();
+    // }
+
+    if (!this.game.camera.atLimit.x) {
+        space.tilePosition.x += (this.ship.body.velocity.x * 16) * this.game.time.physicsElapsed;
     }
 
+    if (!this.game.camera.atLimit.y) {
+        space.tilePosition.y += (this.ship.body.velocity.y * 16) * this.game.time.physicsElapsed;
+    }
 
-
-    this.alive_time++;
-    screenWrap(this.ship);
+    //screenWrap(this.ship);
     //this.bullets.forEachExists(screenWrap, this);
 }
 
@@ -188,77 +188,6 @@ Ship.prototype.addBullets = function() {
     bullets.setAll('anchor.y', 0.5);
     this.bullets = bullets;
 }
-
-
-Ship.prototype.update = function(force) {
-
-    this.alive_time++;
-    // var inputChanged = (
-    //     this.cursor.left != this.input.left ||
-    //     this.cursor.right != this.input.right ||
-    //     this.cursor.up != this.input.up ||
-    //     this.cursor.fire != this.input.fire
-    // );
-
-    //    if (inputChanged) {
-
-    //Handle input change here
-    //send new values to the server        
-
-    //  }
-
-    if (playerId == this.ship.id) {
-        this.cursor = this.input;
-    }
-
-    if (this.cursor.up) {
-        this.game.physics.arcade.accelerationFromRotation(this.cursor.rotation, 200, this.ship.body.acceleration);
-
-        if (playerId != this.ship.id) {
-            console.log('acceleration');
-        }
-
-    } else {
-        if (playerId != this.ship.id) {
-            console.log('stop');
-        }
-        this.ship.body.acceleration.set(0);
-    }
-
-
-    // left right
-    if (this.input.left) {
-        this.ship.body.angularVelocity = -300;
-
-    } else if (this.input.right) {
-        this.ship.body.angularVelocity = 300;
-
-    } else {
-        this.ship.body.angularVelocity = 0;
-    }
-
-    if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
-        this.fireBullet();
-    }
-
-
-    if (this.ship.id == playerId && this.alive_time % 10 == 0) {
-
-        this.input.x = this.ship.x;
-        this.input.y = this.ship.y;
-        this.input.angle = this.ship.angle
-        this.input.rotation = this.ship.rotation
-        // this.input.angle = this.tank.angle;
-        // this.input.rot = this.turret.rotation;
-        eurecaServer.handleKeys(this.input);
-    }
-
-    screenWrap(this.ship);
-
-    this.bullets.forEachExists(screenWrap, this);
-
-};
-
 
 
 Ship.prototype.fireBullet = function() {
@@ -286,29 +215,40 @@ Ship.prototype.kill = function() {
 function preload() {
     game.load.image('space', 'assets/deep-space.jpg');
     game.load.image('bullet', 'assets/bullets.png');
-    game.load.image('ship', 'assets/ship.png');
+    game.load.image('ship', 'assets/ship2.png');
+    game.load.image('dust', 'assets/pixel.png');
 
 }
 
 function create() {
 
+    game.world.setBounds(0, 0, 1920, 1200);
+    game.physics.startSystem(Phaser.Physics.P2JS);
+    game.physics.p2.defaultRestitution = 0.8;
+
+    space = game.add.tileSprite(0, 0, 800, 600, 'space');
+    space.fixedToCamera = true;
+
+
 
     //  This will run in Canvas mode, so let's gain a little speed and display
-    game.renderer.clearBeforeRender = false;
-    game.renderer.roundPixels = true;
+    // game.renderer.clearBeforeRender = false;
+    // game.renderer.roundPixels = true;
 
     //  We need arcade physics
-    game.physics.startSystem(Phaser.Physics.ARCADE);
+    //game.physics.startSystem(Phaser.Physics.ARCADE);
 
-    //  A spacey background
-    game.add.tileSprite(0, 0, game.width, game.height, 'space');
 
 
     shipList = {};
     player = new Ship(game, playerId, ship);
     shipList[playerId] = player;
 
-    game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+    game.camera.follow(player.ship);
+
+    //game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+    // addDust();
+
 }
 
 
@@ -320,9 +260,6 @@ function update() {
     player.input.left = cursors.left.isDown;
     player.input.right = cursors.right.isDown;
     player.input.up = cursors.up.isDown;
-    // player.input.fire = game.input.activePointer.isDown;
-    // player.input.tx = game.input.x + game.camera.x;
-    // player.input.ty = game.input.y + game.camera.y;
 
 
     for (var i in shipList) {
@@ -346,24 +283,26 @@ function update() {
     }
 }
 
+
+
 function bulletHitPlayer(ship, bullet) {
     bullet.kill();
 }
 
-function screenWrap(sprite) {
+// function screenWrap(sprite) {
 
-    if (sprite.x < 0) {
-        sprite.x = game.width;
-    } else if (sprite.x > game.width) {
-        sprite.x = 0;
-    }
+//     if (sprite.x < 0) {
+//         sprite.x = game.width;
+//     } else if (sprite.x > game.width) {
+//         sprite.x = 0;
+//     }
 
-    if (sprite.y < 0) {
-        sprite.y = game.height;
-    } else if (sprite.y > game.height) {
-        sprite.y = 0;
-    }
+//     if (sprite.y < 0) {
+//         sprite.y = game.height;
+//     } else if (sprite.y > game.height) {
+//         sprite.y = 0;
+//     }
 
-}
+// }
 
 function render() {}
