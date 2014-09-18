@@ -1,5 +1,3 @@
-//
-
 var express = require('express'),
     app = express(app),
     server = require('http').createServer(app);
@@ -7,17 +5,35 @@ var express = require('express'),
 
 // serve static files from the current directory
 app.use(express.static(__dirname));
-//
+
 
 //get EurecaServer class
 var EurecaServer = require('eureca.io').EurecaServer;
 
 var eurecaServer = new EurecaServer({
-    allow: ['setId', 'spawnEnemy', 'kill', 'updateState']
+    allow: ['setId', 'spawnEnemy', 'kill', 'updateState', 'loadWorld']
 });
 
 
 var clients = {};
+
+var world = [{
+    id: 1,
+    object: 'planet',
+    type: 'desert',
+    x: 300,
+    y: 300,
+    scale: 0.6
+}, {
+    id: 2,
+    object: 'planet',
+    type: 'desert',
+    x: 900,
+    y: 900,
+    scale: 0.1
+}];
+
+
 
 //attach eureca.io to our http server
 eurecaServer.attach(server);
@@ -37,6 +53,9 @@ eurecaServer.onConnect(function(conn) {
 
     //here we call setId (defined in the client side)
     remote.setId(conn.id);
+
+
+    remote.loadWorld(world)
 });
 
 //detect client disconnection
