@@ -112,8 +112,8 @@ function create() {
 }
 
 function worldLoader(worldObjects) {
-    for key in world {
-        var element = world[key];
+    for(key in worldObjects) {
+        var element = worldObjects[key];
         if (element.object == 'planet') {
             new Planet(game, element.x, element.y, element.scale, element.type);
         }
