@@ -8,61 +8,72 @@ var playerId = 0;
 var bulletTime = 0;
 var game;
 var space;
+var conn;
+
+var webs = function() {
+    if (window["WebSocket"]) {
+        conn = new WebSocket("ws://localhost:9090/ws");
+        conn.onclose = function(evt) {
+            console.log('closed');
+        }
+        conn.onmessage = function(evt) {
+            console.log(evt.data);
+        }
+    } else {
+        console.log('no support');
+    }
+}
 
 var eurecaClientSetup = function() {
     //create an instance of eureca.io client
-    var eurecaClient = new Eureca.Client();
 
-    eurecaClient.ready(function(proxy) {
-        eurecaServer = proxy;
-    });
-
-
-    //methods defined under "exports" namespace become available in the server side
-    eurecaClient.exports.loadWorld = function(world) {
-        worldLoader(world);
-    };
-
-    eurecaClient.exports.setId = function(id) {
-        //create() is moved here to make sure nothing is created before uniq id assignation
-        playerId = id;
-        create();
-        eurecaServer.handshake();
-        ready = true;
-    };
-
-    eurecaClient.exports.kill = function(id) {
-        if (shipList[id]) {
-            shipList[id].kill();
-            console.log('killing ', id, shipList[id]);
-        }
-    };
-
-    eurecaClient.exports.spawnEnemy = function(i, x, y) {
-
-        if (i == playerId) return; //this is me
-        console.log("current Id: " + playerId);
-        console.log("new player id: " + i);
-        var ship = new Ship(game, i, ship);
-        shipList[i] = ship;
-    };
-
-    eurecaClient.exports.updateState = function(id, state) {
-
-        if (shipList[id] && id != playerId) {
-            shipList[id].input = state
-            shipList[id].ship.x = state.x;
-            shipList[id].ship.y = state.y;
-            shipList[id].ship.angle = state.angle;
-            shipList[id].update();
-        }
-    };
+    //
+    //
+    // //methods defined under "exports" namespace become available in the server side
+    // eurecaClient.exports.loadWorld = function(world) {
+    //     worldLoader(world);
+    // };
+    //
+    // eurecaClient.exports.setId = function(id) {
+    //     //create() is moved here to make sure nothing is created before uniq id assignation
+    //     playerId = id;
+    //     create();
+    //     eurecaServer.handshake();
+    //     ready = true;
+    // };
+    //
+    // eurecaClient.exports.kill = function(id) {
+    //     if (shipList[id]) {
+    //         shipList[id].kill();
+    //         console.log('killing ', id, shipList[id]);
+    //     }
+    // };
+    //
+    // eurecaClient.exports.spawnEnemy = function(i, x, y) {
+    //
+    //     if (i == playerId) return; //this is me
+    //     console.log("current Id: " + playerId);
+    //     console.log("new player id: " + i);
+    //     var ship = new Ship(game, i, ship);
+    //     shipList[i] = ship;
+    // };
+    //
+    // eurecaClient.exports.updateState = function(id, state) {
+    //
+    //     if (shipList[id] && id != playerId) {
+    //         shipList[id].input = state
+    //         shipList[id].ship.x = state.x;
+    //         shipList[id].ship.y = state.y;
+    //         shipList[id].ship.angle = state.angle;
+    //         shipList[id].update();
+    //     }
+    // };
 }
 
 
 game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
     preload: preload,
-    create: eurecaClientSetup,
+    create: create,
     update: update,
     render: render
 });
@@ -81,56 +92,55 @@ function create() {
 
 
     game.world.setBounds(0, 0, 20000, 20000);
-
-
     game.physics.startSystem(Phaser.Physics.P2JS);
     game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
 
     space = game.add.tileSprite(0, 0, 800, 600, 'space');
     space.fixedToCamera = true;
 
-
-
     //  This will run in Canvas mode, so let's gain a little speed and display
     //game.renderer.clearBeforeRender = false;
     //game.renderer.roundPixels = true;
 
 
-
     new Planet(game, 0, 0, 0, 'planet-desert');
 
     shipList = {};
-    player = new Ship(game, playerId, ship);
+    player = new Ship(game, playerId);
     shipList[playerId] = player;
 
     game.camera.follow(player.ship);
-
+    ready = true;
 
     //game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
     // addDust();
-
+    this.game.time.events.loop(500, send, this);
 }
 
 function worldLoader(worldObjects) {
-    for key in world {
-        var element = world[key];
-        if (element.object == 'planet') {
-            new Planet(game, element.x, element.y, element.scale, element.type);
-        }
-    }
+    // for key in world {
+    //     var element = world[key];
+    //     if (element.object == 'planet') {
+    //         new Planet(game, element.x, element.y, element.scale, element.type);
+    //     }
+    // }
 }
 
-
+function send() {
+    conn.send(JSON.stringify(player.serialize()));
+}
 
 function update() {
 
-    if (!ready) return;
 
+
+    if (!ready) return;
     cursors = this.game.input.keyboard.createCursorKeys();
     player.input.left = cursors.left.isDown;
     player.input.right = cursors.right.isDown;
     player.input.up = cursors.up.isDown;
 
+    //conn.send(player.input);
 
     for (var i in shipList) {
         if (!shipList[i]) continue;
@@ -180,3 +190,5 @@ function render() {
     game.debug.cameraInfo(game.camera, 32, 32);
 
 }
+
+webs();

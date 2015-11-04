@@ -1,4 +1,4 @@
-Ship = function(game, id, player) {
+Ship = function(game, id) {
 
     var sprite;
     var bullet;
@@ -25,7 +25,6 @@ Ship = function(game, id, player) {
         fire: false
     }
 
-    console.log(game.centerX + "-" + game.world.centerY)
     //  Our player ship
     this.ship = this.game.add.sprite(300, 300, 'ship');
     this.ship.id = id
@@ -59,23 +58,42 @@ Ship.prototype.movementChanged = function() {
     return inputChanged;
 }
 
+Ship.prototype.serialize = function() {
+
+    ship = {"id" : this.ship.id};
+    data = {};
+    data.x = this.ship.x;
+    data.y = this.ship.y;
+    data.a = this.ship.angle
+    data.v = {"s" : this.getSpeed(), "x": this.ship.body.velocity.x, "y": this.ship.body.velocity.y};
+    ship.data = data;
+    return ship;
+}
+Ship.prototype.getSpeed = function() {
+    return Math.sqrt(Math.pow(this.ship.body.velocity.x,2) + Math.pow(this.ship.body.velocity.y,2));
+}
 Ship.prototype.update = function() {
 
 
     // init values
     // this.input.rotation = this.ship.rotation;
-    // this.input.acceleration = this.ship.body.acceleration;
+    //this.input.acceleration = this.ship.body.acceleration;
 
     // sent only when state changes
     if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now % 500 == 0)) {
         this.input.x = this.ship.x;
         this.input.y = this.ship.y;
         this.input.angle = this.ship.angle
-        eurecaServer.handleKeys(this.input);
+        //eurecaServer.handleKeys(this.input);
     }
 
     if (this.input.up) {
-        this.ship.body.thrust(100);
+
+        // Maximum speed
+        if (this.getSpeed() < 6) {
+            this.ship.body.thrust(100);
+        }
+
     } else {
         this.ship.body.setZeroRotation();
     }
