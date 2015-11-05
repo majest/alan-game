@@ -1,5 +1,4 @@
-Ship = function(game, id) {
-
+var Player = function(game, id) {
     var sprite;
     var bullet;
     var bullets;
@@ -25,16 +24,18 @@ Ship = function(game, id) {
         fire: false
     }
 
-    //  Our player ship
-    this.ship = this.game.add.sprite(300, 300, 'ship');
-    this.ship.id = id
-    //this.ship.anchor.set(0.5);
+        //  Our player ship
+        this.ship = this.game.add.sprite(300, 300, 'ship');
+        this.ship.id = id
+        //this.ship.anchor.set(0.5);
 
-    //  and its physics settings
-    // this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
-    this.game.physics.p2.enable(this.ship);
-    this.ship.body.setZeroRotation();
-    // this.ship.body.drag.set(100);
+        //  and its physics settings
+        // this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
+        this.game.physics.p2.enable(this.ship);
+        this.ship.body.setZeroRotation();
+        // this.ship.body.drag.set(100);
+
+
 };
 
 Ship.prototype.movementChanged = function() {
@@ -72,6 +73,7 @@ Ship.prototype.serialize = function() {
 Ship.prototype.getSpeed = function() {
     return Math.sqrt(Math.pow(this.ship.body.velocity.x,2) + Math.pow(this.ship.body.velocity.y,2));
 }
+
 Ship.prototype.update = function() {
 
 
@@ -80,35 +82,35 @@ Ship.prototype.update = function() {
     //this.input.acceleration = this.ship.body.acceleration;
 
     // sent only when state changes
-    if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now % 500 == 0)) {
-        this.input.x = this.ship.x;
-        this.input.y = this.ship.y;
-        this.input.angle = this.ship.angle
-        //eurecaServer.handleKeys(this.input);
-    }
-
-    if (this.input.up) {
-
-        // Maximum speed
-        if (this.getSpeed() < 6) {
-            this.ship.body.thrust(100);
-        }
-
-    } else {
-        this.ship.body.setZeroRotation();
-    }
-
-
-    // left right
-    if (this.input.left) {
-        this.ship.body.rotateLeft(100);
-
-    } else if (this.input.right) {
-        this.ship.body.rotateRight(100);
-
-    } else {
-        this.ship.body.setZeroRotation();
-    }
+    // if (this.ship.id == playerId && (this.movementChanged() || this.game.time.now % 500 == 0)) {
+    //     this.input.x = this.ship.x;
+    //     this.input.y = this.ship.y;
+    //     this.input.angle = this.ship.angle
+    //     //eurecaServer.handleKeys(this.input);
+    // }
+    //
+    // if (this.input.up) {
+    //
+    //     // Maximum speed
+    //     if (this.getSpeed() < 6) {
+    //         this.ship.body.thrust(100);
+    //     }
+    //
+    // } else {
+    //     this.ship.body.setZeroRotation();
+    // }
+    //
+    //
+    // // left right
+    // if (this.input.left) {
+    //     this.ship.body.rotateLeft(100);
+    //
+    // } else if (this.input.right) {
+    //     this.ship.body.rotateRight(100);
+    //
+    // } else {
+    //     this.ship.body.setZeroRotation();
+    // }
 
     // if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
     //     this.fireBullet();

@@ -92,8 +92,11 @@ function create() {
 
 
     game.world.setBounds(0, 0, 20000, 20000);
-    game.physics.startSystem(Phaser.Physics.P2JS);
-    game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+    //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
+
+    game.renderer.clearBeforeRender = false;
+    game.renderer.roundPixels = true;
 
     space = game.add.tileSprite(0, 0, 800, 600, 'space');
     space.fixedToCamera = true;
@@ -106,7 +109,7 @@ function create() {
     new Planet(game, 0, 0, 0, 'planet-desert');
 
     shipList = {};
-    player = new Ship(game, playerId);
+    player = new Player(game, playerId, playerId);
     shipList[playerId] = player;
 
     game.camera.follow(player.ship);
@@ -114,7 +117,7 @@ function create() {
 
     //game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
     // addDust();
-    this.game.time.events.loop(500, send, this);
+    this.game.time.events.loop(50, send, this);
 }
 
 function worldLoader(worldObjects) {
@@ -127,7 +130,7 @@ function worldLoader(worldObjects) {
 }
 
 function send() {
-    conn.send(JSON.stringify(player.serialize()));
+    //conn.send(JSON.stringify(player.input));
 }
 
 function update() {
@@ -147,19 +150,21 @@ function update() {
         var curBullets = shipList[i].bullets;
         var curShip = shipList[i].ship;
 
-        for (var j in shipList) {
+        // for (var j in shipList) {
+        //
+        //     if (!shipList[j]) continue;
+        //
+        //     if (j != i) {
+        //         var targetShip = shipList[j].ship;
+        //         game.physics.arcade.overlap(curBullets, targetShip, bulletHitPlayer, null, this);
+        //     }
+        //
+        //
+        // }
 
-            if (!shipList[j]) continue;
-
-            if (j != i) {
-                var targetShip = shipList[j].ship;
-                game.physics.arcade.overlap(curBullets, targetShip, bulletHitPlayer, null, this);
-            }
-
-
-            if (shipList[j].alive) {
-                shipList[j].update();
-            }
+        // if the ship is alive
+        if (shipList[i].alive) {
+            shipList[i].update(space);
         }
     }
 }
@@ -188,6 +193,7 @@ function bulletHitPlayer(ship, bullet) {
 
 function render() {
     game.debug.cameraInfo(game.camera, 32, 32);
+    game.debug.spriteInfo(player.ship, 32, 128);
 
 }
 
