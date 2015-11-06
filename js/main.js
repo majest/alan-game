@@ -11,6 +11,7 @@ var space;
 var conn;
 
 var webs = function() {
+
     if (window["WebSocket"]) {
         conn = new WebSocket("ws://localhost:9090/ws");
         conn.onclose = function(evt) {
@@ -83,7 +84,7 @@ game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
 function preload() {
     game.load.image('space', 'assets/deep-space.jpg');
     game.load.image('bullet', 'assets/bullets.png');
-    game.load.image('ship', 'assets/ship2.png');
+    game.load.image('ship', 'assets/ships/fury.png');
     game.load.image('dust', 'assets/pixel.png');
     game.load.image('planet-desert', 'assets/planets/desert.png');
 }
@@ -97,7 +98,7 @@ function create() {
 
     game.renderer.clearBeforeRender = false;
     game.renderer.roundPixels = true;
-
+    game.stage.disableVisibilityChange = true;
     space = game.add.tileSprite(0, 0, 800, 600, 'space');
     space.fixedToCamera = true;
 
@@ -109,7 +110,7 @@ function create() {
     new Planet(game, 0, 0, 0, 'planet-desert');
 
     shipList = {};
-    player = new Player(game, playerId, playerId);
+    player = new Player(game, playerId, playerId, webs);
     shipList[playerId] = player;
 
     game.camera.follow(player.ship);

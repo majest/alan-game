@@ -48,7 +48,7 @@ class Destination {
 class ShipProperties {
 
     // how fast ship is turning
-    turnRate: number = 1;
+    turnRate: number = 10;
     speed: number = 80;
     breakingForce: number = 80;
 }
@@ -67,7 +67,7 @@ class Player {
 
     properties: ShipProperties = new ShipProperties();
 
-    constructor(private game, id, public currentPlayerId) {
+    constructor(private game, id, public currentPlayerId, public server) {
         this.input = new Input();
         this.last_input = new Input();
         this.createShip(id);
@@ -86,8 +86,20 @@ class Player {
         this.ship.anchor.setTo(0.5, 0.5);
         //this.ship.body.maxAngular = 500;
         this.ship.body.angularDrag = 50;
-        this.ship.rotation = 90;
+        this.ship.rotation = 0;
+        this.ship.angle = 0;
+        this.ship.scale.setTo(0.5, 0.5);
+        //this.ship.body.rotation = 90;
+        //this.ship.rotation = 1;
 
+    }
+
+    getRotation() {
+        return this.ship.rotation;
+    }
+
+    setRotation(rotation) {
+        this.ship.rotation = rotation;
     }
 
     movementChanged() {
@@ -133,7 +145,6 @@ class Player {
 
         var targetAngle;
 
-
         if (distanceToTarget < 4.0) {
             this.input.rotationFinished = true;
             this.input.movementFinished = true;
@@ -143,41 +154,45 @@ class Player {
             //console.log('------------------------ MOVEMENT ------------------' + this.input.movementFinished);
             var rotation = this.game.physics.arcade.moveToXY(this.ship, x, y, this.properties.speed);
 
-            var targetAngle = this.game.math.angleBetween(
-                x, y,
-                this.ship.x, this.ship.y // ----- >>>> HOW TO CALL PLAYER ???
-            );
+            // var targetAngle = this.game.math.angleBetween(
+            //     x, y,
+            //     this.ship.x, this.ship.y // ----- >>>> HOW TO CALL PLAYER ???
+            // );
 
-            targetAngle = rotation
-            if (this.ship.rotation !== targetAngle && !this.input.rotationFinished) {
+            if (!targetAngle) {
+                targetAngle = rotation;
+            }
+
+            if (this.getRotation() !== targetAngle && !this.input.rotationFinished) {
 
                 //console.log('------------------------ ROTATION ------------------');
                 // Calculate difference between the current angle and targetAngle
-                var delta: number = targetAngle - this.ship.rotation;
+                var delta: number = targetAngle - this.getRotation();
 
                 // Keep it in range from -180 to 180 to make the most efficient turns.
                 if (delta > Math.PI) delta -= Math.PI * 2;
                 if (delta < -Math.PI) delta += Math.PI * 2;
 
+
+
                 if (delta > 0) {
-                    // Turn clockwise
                     this.ship.angle += this.properties.turnRate;
                 } else {
-                    // Turn counter-clockwise
                     this.ship.angle -= this.properties.turnRate;
                 }
 
-                var deltaAbs: number = parseFloat(Math.abs(delta).toFixed(4));
-                var targetDelta: number = parseFloat(Math.abs(this.game.math.degToRad(targetAngle)).toFixed(4));
+                var deltaAbs: number = parseFloat(Math.abs(delta).toFixed(2));
+                var target: number = parseFloat(Math.abs(this.game.math.degToRad(this.properties.turnRate)).toFixed(2));
 
                 // Just set angle to target angle if they are close
-                if (deltaAbs <=  targetDelta) {
+                if (deltaAbs <=  target) {
                     // modify the angle
-                    this.ship.rotation = targetAngle;
+                    this.setRotation(targetAngle);
                     this.input.rotationFinished = true;
+                    //console.log('-------------');
                 }
-
-                console.log("rotation:" + targetAngle + ", delta:" + delta + ", shiprotation:" + this.ship.rotation);
+                //console.log("target:" + target + " deltaAbs:" + deltaAbs);
+                //console.log("rotation:" + targetAngle + ", delta:" + delta + ", shiprotation:" + this.ship.rotation);
 
             }
 
@@ -193,7 +208,6 @@ class Player {
     }
 
     update(space, command) {
-
         this.moveToLocation(this.command);
 
 

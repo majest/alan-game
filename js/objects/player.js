@@ -45,16 +45,17 @@ var Destination = (function () {
 var ShipProperties = (function () {
     function ShipProperties() {
         // how fast ship is turning
-        this.turnRate = 1;
+        this.turnRate = 10;
         this.speed = 80;
         this.breakingForce = 80;
     }
     return ShipProperties;
 })();
 var Player = (function () {
-    function Player(game, id, currentPlayerId) {
+    function Player(game, id, currentPlayerId, server) {
         this.game = game;
         this.currentPlayerId = currentPlayerId;
+        this.server = server;
         this.alive = true;
         // command for the ship action
         this.command = new Command();
@@ -75,7 +76,17 @@ var Player = (function () {
         this.ship.anchor.setTo(0.5, 0.5);
         //this.ship.body.maxAngular = 500;
         this.ship.body.angularDrag = 50;
-        this.ship.rotation = 90;
+        this.ship.rotation = 0;
+        this.ship.angle = 0;
+        this.ship.scale.setTo(0.5, 0.5);
+        //this.ship.body.rotation = 90;
+        //this.ship.rotation = 1;
+    };
+    Player.prototype.getRotation = function () {
+        return this.ship.rotation;
+    };
+    Player.prototype.setRotation = function (rotation) {
+        this.ship.rotation = rotation;
     };
     Player.prototype.movementChanged = function () {
         var inputChanged = this.last_input.compare(this.input);
@@ -116,35 +127,36 @@ var Player = (function () {
         if (x && y && !this.input.movementFinished) {
             //console.log('------------------------ MOVEMENT ------------------' + this.input.movementFinished);
             var rotation = this.game.physics.arcade.moveToXY(this.ship, x, y, this.properties.speed);
-            var targetAngle = this.game.math.angleBetween(x, y, this.ship.x, this.ship.y // ----- >>>> HOW TO CALL PLAYER ???
-            );
-            targetAngle = rotation;
-            if (this.ship.rotation !== targetAngle && !this.input.rotationFinished) {
+            // var targetAngle = this.game.math.angleBetween(
+            //     x, y,
+            //     this.ship.x, this.ship.y // ----- >>>> HOW TO CALL PLAYER ???
+            // );
+            if (!targetAngle) {
+                targetAngle = rotation;
+            }
+            if (this.getRotation() !== targetAngle && !this.input.rotationFinished) {
                 //console.log('------------------------ ROTATION ------------------');
                 // Calculate difference between the current angle and targetAngle
-                var delta = targetAngle - this.ship.rotation;
+                var delta = targetAngle - this.getRotation();
                 // Keep it in range from -180 to 180 to make the most efficient turns.
                 if (delta > Math.PI)
                     delta -= Math.PI * 2;
                 if (delta < -Math.PI)
                     delta += Math.PI * 2;
                 if (delta > 0) {
-                    // Turn clockwise
                     this.ship.angle += this.properties.turnRate;
                 }
                 else {
-                    // Turn counter-clockwise
                     this.ship.angle -= this.properties.turnRate;
                 }
-                var deltaAbs = parseFloat(Math.abs(delta).toFixed(4));
-                var targetDelta = parseFloat(Math.abs(this.game.math.degToRad(targetAngle)).toFixed(4));
+                var deltaAbs = parseFloat(Math.abs(delta).toFixed(2));
+                var target = parseFloat(Math.abs(this.game.math.degToRad(this.properties.turnRate)).toFixed(2));
                 // Just set angle to target angle if they are close
-                if (deltaAbs <= targetDelta) {
+                if (deltaAbs <= target) {
                     // modify the angle
-                    this.ship.rotation = targetAngle;
+                    this.setRotation(targetAngle);
                     this.input.rotationFinished = true;
                 }
-                console.log("rotation:" + targetAngle + ", delta:" + delta + ", shiprotation:" + this.ship.rotation);
             }
             // Calculate velocity vector based on this.rotation and this.SPEED
             this.ship.body.velocity.x = Math.cos(this.ship.rotation) * this.properties.speed;
