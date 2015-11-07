@@ -1,3 +1,5 @@
+/// <reference path="../main.ts"/>
+
 var Phaser:any;
 var accelerateToPointer: any;
 
@@ -6,13 +8,6 @@ class Input {
     public right: boolean = false;
     public up: boolean = false;
     public fire: boolean = false;
-    public rotationFinished: boolean = false;
-    public movementFinished: boolean = false;
-
-    reset() {
-        this.rotationFinished = false;
-        this.movementFinished = false;
-    }
 
     load(input: Input) {
         this.left = input.left;
@@ -31,24 +26,10 @@ class Input {
     }
 }
 
-class Command {
-    destination: Destination = new Destination();
-}
-
-class Destination {
-    public x: number;
-    public y: number;
-
-    reset() {
-        this.x = null;
-        this.y = null;
-    }
-}
-
 class ShipProperties {
 
     // how fast ship is turning
-    turnRate: number = 10;
+    turnRate: number = 1;
     speed: number = 80;
     breakingForce: number = 80;
 }
@@ -56,27 +37,56 @@ class ShipProperties {
 
 class Player {
 
-    input: Input;
-    last_input: Input;
+    // input: Input;
+    // last_input: Input;
     ship: any;
     alive: boolean = true;
     tween: any;
-
-    // command for the ship action
-    command: Command = new Command();
-
+    message: Message;
     properties: ShipProperties = new ShipProperties();
+    transporter: MessageTransport;
 
-    constructor(private game, id, public currentPlayerId, public server) {
-        this.input = new Input();
-        this.last_input = new Input();
+    // defines whether the player is the current player
+    currentPlayer : boolean;
+
+    // stors the phaser game object
+    game;
+    // player id
+    id;
+
+    constructor(game, id) {
+        this.id = id;
+        this.game = game;
         this.createShip(id);
+    }
+
+    // set the transport object
+    setTransporter(transporter: MessageTransport) {
+        this.transporter = transporter;
+    }
+
+    isCurrentPlayer() {
+        if (this.currentPlayer) {
+            return true;
+        }
+        return false;
+    }
+
+    setCurrentPlayer() {
+
+        // set that this object is the current player
+        this.currentPlayer = true;
+
+        // handle click&move
         this.game.input.onDown.add(this.moveToPointer, this);
+
+        // follow this player
+        this.game.camera.follow(this.ship);
     }
 
     createShip(id) {
-        this.ship = this.game.add.sprite(300, 300, 'ship');
 
+        this.ship = this.game.add.sprite(300, 300, 'ship');
         this.ship.id = id;
         this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
         //this.ship.body.setZeroRotation();
@@ -102,17 +112,17 @@ class Player {
         this.ship.rotation = rotation;
     }
 
-    movementChanged() {
-
-        var inputChanged = this.last_input.compare(this.input);
-
-        // saving last state
-        if (inputChanged) {
-            this.last_input.load(this.input);
-        }
-
-        return inputChanged;
-    }
+    // movementChanged() {
+    //
+    //     var inputChanged = this.last_input.compare(this.input);
+    //
+    //     // saving last state
+    //     if (inputChanged) {
+    //         this.last_input.load(this.input);
+    //     }
+    //
+    //     return inputChanged;
+    // }
 
     serialize(): Object {
         return {
@@ -130,49 +140,55 @@ class Player {
         return Math.sqrt(Math.pow(this.ship.body.velocity.x,2) + Math.pow(this.ship.body.velocity.y,2));
     }
 
-
-    moveToPointer(pointer) {
-        this.command.destination.x = pointer.worldX;
-        this.command.destination.y = pointer.worldY;
-        this.input.reset();
+    setMessage(message: Message) {
+        this.message = message;
     }
 
-    moveToLocation(command: Command) {
+    moveToPointer(pointer) {
+        // set the destination
+        this.message = new Message(this.id);
+        this.message.setDestination(new Loc(pointer.worldX, pointer.worldY));
+        this.message.setMovement(new Movement());
+        this.message.setLocation(new Loc(this.ship.x, this.ship.y));
+        //this.sendData(this.message);
+    }
 
-        var x = command.destination.x;
-        var y = command.destination.y;
+    sendData(message: Message) {
+        this.transporter.sendMessage(message);
+    }
+
+    moveToLocation(message: Message) {
+
+        if (!message) return;
+
+        var movement = message.movement;
+        var destination = message.destination;
+
+        var x = destination.x;
+        var y = destination.y;
+
+        // calcualte distance to target
         var distanceToTarget: number = parseFloat(this.game.physics.arcade.distanceToXY(this.ship, x, y).toFixed(2));
 
-        var targetAngle;
-
-        if (distanceToTarget < 4.0) {
-            this.input.rotationFinished = true;
-            this.input.movementFinished = true;
+        if (distanceToTarget < 8.0) {
+            this.message= null;
         }
 
-        if (x && y && !this.input.movementFinished) {
-            //console.log('------------------------ MOVEMENT ------------------' + this.input.movementFinished);
+        // if the destiantion is Set
+        // and movement is not finished (needs to continue performing movement untill end)
+        // or we are not moving and movement is finished
+        if (destination.isSet() && (!movement.movementFinished || (movement.movementFinished && !movement.moving))) {
+
             var rotation = this.game.physics.arcade.moveToXY(this.ship, x, y, this.properties.speed);
 
-            // var targetAngle = this.game.math.angleBetween(
-            //     x, y,
-            //     this.ship.x, this.ship.y // ----- >>>> HOW TO CALL PLAYER ???
-            // );
+            if (this.getRotation() !== rotation && (!movement.rotationFinished || (movement.rotationFinished && !movement.rotating))) {
 
-            if (!targetAngle) {
-                targetAngle = rotation;
-            }
-
-            if (this.getRotation() !== targetAngle && !this.input.rotationFinished) {
-
-                //console.log('------------------------ ROTATION ------------------');
                 // Calculate difference between the current angle and targetAngle
-                var delta: number = targetAngle - this.getRotation();
+                var delta: number = rotation - this.getRotation();
 
                 // Keep it in range from -180 to 180 to make the most efficient turns.
                 if (delta > Math.PI) delta -= Math.PI * 2;
                 if (delta < -Math.PI) delta += Math.PI * 2;
-
 
 
                 if (delta > 0) {
@@ -187,15 +203,10 @@ class Player {
                 // Just set angle to target angle if they are close
                 if (deltaAbs <=  target) {
                     // modify the angle
-                    this.setRotation(targetAngle);
-                    this.input.rotationFinished = true;
-                    //console.log('-------------');
+                    this.setRotation(rotation);
+                    movement.finishRotation();
                 }
-                //console.log("target:" + target + " deltaAbs:" + deltaAbs);
-                //console.log("rotation:" + targetAngle + ", delta:" + delta + ", shiprotation:" + this.ship.rotation);
-
             }
-
 
 	    // Calculate velocity vector based on this.rotation and this.SPEED
 	           this.ship.body.velocity.x = Math.cos(this.ship.rotation) * this.properties.speed
@@ -207,8 +218,10 @@ class Player {
         }
     }
 
-    update(space, command) {
-        this.moveToLocation(this.command);
+
+    update(space) {
+
+        this.moveToLocation(this.message);
 
 
             //this.ship.rotation = this.game.physics.arcade.angleToPointer(this.ship, this.clickPointer);
@@ -248,7 +261,7 @@ class Player {
         // }
 
 
-        if (this.ship.id == this.currentPlayerId) {
+        if (this.currentPlayer) {
             if (!this.game.camera.atLimit.x) {
                 space.tilePosition.x -= (this.ship.body.velocity.x) * this.game.time.physicsElapsed;
             }
