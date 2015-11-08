@@ -10,25 +10,24 @@ class Game {
     player;
     space;
 
+    playerId;
+
     connection;
     transporter;
     actionHandler;
 
     constructor() {
-        this.game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser', {
+        this.game = new Phaser.Game(800, 600, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
             create: this.create,
             update: this.update,
             render: this.render
         });
-
-        // create message parser for incoming messages
-
     }
 
     // init the world
     create() {
-        console.log('create');
+        console.log('Creating world');
 
         this.game.world.setBounds(0, 0, 20000000, 20000000);
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
@@ -36,7 +35,8 @@ class Game {
 
         this.game.renderer.clearBeforeRender = false;
         this.game.renderer.roundPixels = true;
-        this.game.stage.disableVisibilityChange = true;
+
+
         this.space = this.game.add.tileSprite(0, 0, 800, 600, 'space');
         this.space.fixedToCamera = true;
 
@@ -48,41 +48,30 @@ class Game {
 
         this.actionHandler = new ActionHandler(this.game);
 
-        //new Planet(game, 0, 0, 0, 'planet-desert');
-        this.transporter = new MessageTransport(this.actionHandler);
-        //var playerId = 1;
-        // this.player = new Player(this.game, playerId, playerId);
-        // this.player.setTransporter(this.transporter);
+        var playerId = Math.random() + '';
+        this.playerId = playerId;
 
-        // add player to the list
-        //this.ships = new List([{'key': playerId, 'value': this.player}]);
+        //new Planet(game, 0, 0, 0, 'planet-desert');
+        this.transporter = new MessageTransport(this.actionHandler, this.playerId);
+        this.actionHandler.setTransporter(this.transporter);
 
         this.ready = true;
 
-        var message = new Message('player678');
-        message.logIn(new Loc(300,300));
-        this.actionHandler.handleMessage(message);
-        //
-        var message = new Message('player23');
+
+        var message = new Message(playerId);
         message.addPlayer(new Loc(400,400));
         this.actionHandler.handleMessage(message);
 
-        var message = new Message('player23');
-        message.setDestination(new Loc(400,400));
+        var message = new Message(playerId);
+        message.logIn();
         this.actionHandler.handleMessage(message);
-
-        //game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
-        // addDust();
-        //var sendData = this.sendData;
-
-        //this.scene = new Scene(this.game, this.transporter);
-        //this.game.time.events.loop(500, sendData, this);
-
 
     }
 
     // preload
     preload() {
+        this.game.stage.disableVisibilityChange = true;
+        this.game.config.forceSetTimeOut = true;
         this.game.load.image('space', 'assets/deep-space.jpg');
         this.game.load.image('bullet', 'assets/bullets.png');
         this.game.load.image('ship', 'assets/ships/fury.png');
@@ -102,51 +91,22 @@ class Game {
         // add currents player sprite info
         var currentPLayer = this.actionHandler.getPlayers().getCurrentPlayer();
         if (currentPLayer) {
-            this.game.debug.spriteInfo(currentPLayer.ship, 32, 128);
+            //this.game.debug.spriteInfo(currentPLayer.ship, 32, 128);
         }
     }
 
     //update the state
     update() {
-
         if (!this.ready || this.actionHandler.getPlayers().length() == 0) return;
 
         var players = this.actionHandler.getPlayers().values();
-    //    this.actionHandler.getPlayers().values()[0].update(this.space);
+
         for (var key in players) {
             var player = players[key];
             player.update(this.space);
         }
-
-        //conn.send(player.input);
-        //this.messageParser.
-        // for (var i in this.ships) {
-        //     if (!this.ships[i]) continue;
-        //     var curBullets = this.ships[i].bullets;
-        //     var curShip = this.ships[i].ship;
-        //
-        //     // for (var j in shipList) {
-        //     //
-        //     //     if (!shipList[j]) continue;
-        //     //
-        //     //     if (j != i) {
-        //     //         var targetShip = shipList[j].ship;
-        //     //         game.physics.arcade.overlap(curBullets, targetShip, bulletHitPlayer, null, this);
-        //     //     }
-        //     //
-        //     //
-        //     // }
-        //
-        //     // if the ship is alive
-        //     if (ships[i].alive) {
-        //         this.ships[i].update(this.space);
-        //     }
-        // }
     }
 
-    sendData() {
-        //this.player.sendData(this.connection);
-    }
 
 }
 
@@ -157,7 +117,7 @@ class Connection {
 
     constructor(transporter: MessageTransport) {
         if (window['WebSocket']) {
-            console.log('Connection');
+            console.log('Connecting');
             this.conn = new WebSocket("ws://localhost:9090/ws");
 
             this.conn.onclose = function(evt) {
@@ -187,20 +147,27 @@ class MessageTransport {
     connection;
     actionHandler: ActionHandler;
 
-    constructor(actionHandler: ActionHandler) {
+    constructor(actionHandler: ActionHandler, private playerId) {
+        console.log('Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
 
-    parse(message) {
-        var data = JSON.parse(message);
-        this.actionHandler.handleMessage(<Message>message);
+    parse(messageData) {
+        console.log('MessageTransport::parse');
+        var data = JSON.parse(messageData);
+        var message = Message.fromJson(data);
+
+        // do not handle current's player messages from outside
+        if (this.playerId !== message.id) {
+            this.actionHandler.handleMessage(message);
+        }
     }
 
     sendMessage(message: Message) {
-
+        console.log('MessageTransport::sendMessage');
+        console.log(message);
         var messageData = JSON.stringify(message.toJson());
-        //console.log(messageData);
         this.connection.sendMessage(messageData);
     }
 }
@@ -213,11 +180,13 @@ class ActionHandler {
     game;
 
     constructor(game) {
+        console.log('ActionHandler::constructor');
         this.players = new Players();
         this.game = game;
     }
 
     setTransporter(transporter: MessageTransport) {
+        console.log('ActionHandler::setTransporter');
         this.transporter = transporter;
     }
 
@@ -227,26 +196,27 @@ class ActionHandler {
 
     handleMessage(message: Message) {
 
-        if (message.containsAction('player_login')) {
-            var player = new Player(this.game, message.id);
+        console.log('ActionHandler::handleMessage');
+        // get the player by id
+        var player = this.players.getPlayer(message.id);
 
-            // tel that it's the current player
-            player.setCurrentPlayer();
-
-            // set player's transporter so that it can send messages when action is taken
-            player.setTransporter(this.transporter);
-
-            // add player to the list
-            this.players.add(player);
-        } else if (message.containsAction('player_add')) {
-            var player = new Player(this.game, message.id);
-            this.players.add(player);
-
-        // message for existing player
-        } else if (this.players.containsKey(message.id)){
-            this.players[message.id].setMessage(message);
+        // if could not found player, create new one
+        // and add to list
+        if (!player) {
+            player = new Player(this.game, message.id);
+            this.players.add(message.id, player);
         }
 
+        // log in player if required
+        if (message.shouldLogIn()) {
+            console.log('ActionHandler::handleMessage - player logged in');
+            player.setCurrentPlayer();
+            player.setTransporter(this.transporter);
+        }
+
+        // allow controll to process the message
+        //console.log('Sending message (actions: ' + message.action.join(',') + ') to player: ' + message.id);
+        player.handleMessage(message);
 
     }
 
@@ -255,7 +225,7 @@ class ActionHandler {
 
 
 interface PlayerListInterface {
-    add(value: Player): void;
+    add(key: string, value: Player): void;
     remove(key: string): void;
     containsKey(key: string): boolean;
     keys(): string[];
@@ -266,12 +236,10 @@ class Players {
     _keys: string[] = [];
     _values: Player[] = [];
 
-    add(player: Player) {
-        var key = player.id;
+    add(key: string, player: Player) {
         this[key] = player;
         this._keys.push(key);
         this._values.push(player);
-
     }
 
     remove(key: string) {
@@ -312,6 +280,14 @@ class Players {
         return null;
     }
 
+    getPlayer(id: string) {
+        if (this.containsKey(id)){
+            return this[id];
+        }
+
+        console.log('--------------- No player by id found : ' + id + '-------------------')
+        return null;
+    }
 
     toLookup(): PlayerListInterface {
         return this;
@@ -319,7 +295,3 @@ class Players {
 }
 
 var game = new Game();
-
-var sendData = function() {
-    game.sendData();
-}
