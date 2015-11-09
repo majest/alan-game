@@ -1,7 +1,10 @@
 /// <reference path="objects/player.ts"/>
 /// <reference path="objects/message.ts"/>
 
-
+var resx: number = 1280;
+var resy: number = 720;
+var game;
+var playerId;
 
 class Game {
 
@@ -17,8 +20,10 @@ class Game {
     actionHandler;
 
     scene;
+
+    fullScreenEnabled: boolean = false;
     constructor() {
-        this.game = new Phaser.Game(800, 600, Phaser.WEBGL, 'phaser', {
+        this.game = new Phaser.Game(resx, resy, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
             create: this.create,
             update: this.update,
@@ -26,18 +31,27 @@ class Game {
         });
     }
 
+    gofullScreen() {
+        if (this.game.scale.isFullScreen)
+        {
+            //this.game.scale.stopFullScreen();
+        }
+        else
+        {
+            this.game.scale.startFullScreen(true);
+        }
+    }
+
     // init the world
     create() {
         console.log('Creating world');
 
         this.game.world.setBounds(0, 0, 20000000, 20000000);
-        this.game.physics.startSystem(Phaser.Physics.ARCADE);
+        this.game.physics.startSystem(Phaser.Physics.AUTO);
         //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
 
         this.game.renderer.clearBeforeRender = false;
         //this.game.renderer.roundPixels = true;
-
-
 
 
         this.game.time.advancedTiming = true;
@@ -45,6 +59,8 @@ class Game {
         //  This will run in Canvas mode, so let's gain a little speed and display
         //game.renderer.clearBeforeRender = false;
         //game.renderer.roundPixels = true;
+
+
 
         var playerId = Math.random() + '';
         this.playerId = playerId;
@@ -57,14 +73,19 @@ class Game {
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
         this.actionHandler.createPlayer();
+
+        this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+
+         // Keep original size
+         // game.scale.fullScreenScaleMode = Phaser.ScaleManager.NO_SCALE;
+         //
+         // Maintain aspect ratio
+         // game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
+
+        this.game.input.onDown.add(goFullScreen, this);
+
         this.ready = true;
-
-
-
-
-
     }
-
 
 
     // preload
@@ -121,10 +142,10 @@ class Scene {
     space2;
 
     constructor(private game: any) {
-        this.space1 = this.game.add.tileSprite(0, 0, 800, 600, 'space1');
+        this.space1 = this.game.add.tileSprite(0, 0, resx, resy, 'space1');
         this.space1.fixedToCamera = true;
 
-        this.space2 = this.game.add.tileSprite(0, 0, 800, 600, 'space2');
+        this.space2 = this.game.add.tileSprite(0, 0, resx, resy, 'space2');
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.4;
 
@@ -376,4 +397,8 @@ function waitForSocketConnection(socket, callback){
         }, 5); // wait 5 milisecond for the connection...
 }
 
-var game = new Game();
+
+
+function goFullScreen() {
+    game.gofullScreen();
+}
