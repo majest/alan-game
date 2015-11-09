@@ -437,6 +437,7 @@ var Game = (function () {
         this.game.load.image('bullet', 'assets/bullets.png');
         this.game.load.image('ship', 'assets/ships/fury.png');
         this.game.load.image('dust', 'assets/pixel.png');
+        this.game.load.image('planet-earth', 'assets/planets/earth.png');
         this.game.load.image('planet-desert', 'assets/planets/desert.png');
     };
     // debug
@@ -472,8 +473,18 @@ var Scene = (function () {
         this.space1.fixedToCamera = true;
         this.space2 = this.game.add.tileSprite(0, 0, 800, 600, 'space2');
         this.space2.fixedToCamera = true;
-        this.space2.alpha = 0.3;
+        this.space2.alpha = 0.4;
+        this.createPlanets();
     }
+    Scene.prototype.createPlanets = function () {
+        var planet = this.game.add.sprite(500, 400, "planet-earth");
+        planet.scale.set(0.4);
+        planet.anchor.setTo(0.5, 0.5);
+        var planet = this.game.add.sprite(1500, 600, "planet-desert");
+        planet.scale.set(0.3);
+        planet.anchor.setTo(0.5, 0.5);
+        //planet.scale.set(scale);
+    };
     Scene.prototype.update = function (object) {
         if (!this.game.camera.atLimit.x) {
             this.space1.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed * 0.4;
@@ -543,7 +554,7 @@ var ActionHandler = (function () {
     }
     ActionHandler.prototype.createPlayer = function () {
         var message = new Message(this.playerId);
-        message.addPlayer(new Loc(400, 400));
+        message.addPlayer(new Loc(800, 400));
         this.transporter.sendMessage(message);
         var message = new Message(this.playerId);
         message.logIn();
