@@ -74,13 +74,13 @@ class Game {
         this.actionHandler.setTransporter(this.transporter);
         this.actionHandler.createPlayer();
 
-        this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+        //this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
 
          // Keep original size
          // game.scale.fullScreenScaleMode = Phaser.ScaleManager.NO_SCALE;
          //
          // Maintain aspect ratio
-         // game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
+          this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
 
         this.game.input.onDown.add(goFullScreen, this);
 
