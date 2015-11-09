@@ -34,7 +34,7 @@ class Player extends ObjectControll  {
     alive: boolean = true;
 
     // defines whether the player is the current player
-    currentPlayer : boolean;
+    currentPlayer : boolean = false;
 
     isCurrentPlayer() {
         if (this.currentPlayer) {
@@ -42,6 +42,7 @@ class Player extends ObjectControll  {
         }
         return false;
     }
+
 
     setCurrentPlayer() {
 
@@ -60,23 +61,11 @@ class Player extends ObjectControll  {
         var message = new Message(this.id);
         message.setDestination(new Loc(pointer.worldX, pointer.worldY));
         message.setLocation(this.getLocation());
-        this.handleMessage(message);
         this.transporter.sendMessage(message);
     }
 
-    update(space) {
-
+    update() {
         this.moveToLocation();
-
-        if (this.currentPlayer) {
-            if (!this.game.camera.atLimit.x) {
-                space.tilePosition.x -= (this.getObject().body.velocity.x) * this.game.time.physicsElapsed;
-            }
-
-            if (!this.game.camera.atLimit.y) {
-                space.tilePosition.y -= (this.getObject().body.velocity.y) * this.game.time.physicsElapsed;
-            }
-        }
     }
 
 }

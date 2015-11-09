@@ -4,7 +4,7 @@
 */
 class Properties {
     // how fast ship is turning
-    turnRate: number = 1;
+    turnRate: number = 7;
     speed: number = 80;
     breakingForce: number = 80;
     object: string = 'ship';
@@ -36,7 +36,6 @@ class Message  {
     public movement: Movement;
     public location: Loc;
     public properties: Properties;
-
     public login: boolean = false;
 
     constructor(id: string) {
@@ -47,10 +46,24 @@ class Message  {
 
         var message = new Message(json.id);
         message.action = json.action;
-        message.destination = Loc.fromJson(json['destination']);
+
+        if (json['destination']) {
+            message.destination = Loc.fromJson(json['destination']);
+        }
+
+        if (json['movement']) {
+            message.movement = Movement.fromJson(json['movement']);
+        }
         message.location = Loc.fromJson(json['location']);
-        message.movement = Movement.fromJson(json['movement']);
-        message.properties = Properties.fromJson(json['properties']);
+
+        if (json['properties']) {
+            message.properties = Properties.fromJson(json['properties']);
+        }
+
+        if (json['login']) {
+            message.login = json['login'];
+        }
+
         return message;
     }
 
@@ -104,13 +117,27 @@ class Message  {
         var result = {
             "id" : this.id,
             "action" : this.action,
-            "destination": this.destination.toJson(),
-            "movement": this.movement.toJson(),
-            "location": this.location.toJson(),
+
+        }
+
+        if (this.login) {
+            result['login'] = this.login;
+        }
+
+        if (this.destination) {
+            result['destination'] = this.destination.toJson();
+        }
+
+        if (this.movement) {
+            result['movement'] = this.movement.toJson();
         }
 
         if (this.properties) {
             result["properties"] = this.properties.toJson();
+        }
+
+        if (this.properties) {
+            result["location"] = this.location.toJson();
         }
 
         return result;
@@ -166,6 +193,11 @@ class Loc  {
     }
 
     public static fromJson(json: any) : Loc{
+
+        if (!json) {
+            return null
+        }
+
         var loc = new Loc(json['x'], json['y']);
 
         if (json['angle'] && json['velocityy'] && json['velocityx'] && json['angle']) {

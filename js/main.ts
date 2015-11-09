@@ -16,6 +16,7 @@ class Game {
     transporter;
     actionHandler;
 
+    scene;
     constructor() {
         this.game = new Phaser.Game(800, 600, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
@@ -34,11 +35,10 @@ class Game {
         //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
 
         this.game.renderer.clearBeforeRender = false;
-        this.game.renderer.roundPixels = true;
+        //this.game.renderer.roundPixels = true;
 
 
-        this.space = this.game.add.tileSprite(0, 0, 800, 600, 'space');
-        this.space.fixedToCamera = true;
+
 
         this.game.time.advancedTiming = true;
 
@@ -46,33 +46,33 @@ class Game {
         //game.renderer.clearBeforeRender = false;
         //game.renderer.roundPixels = true;
 
-        this.actionHandler = new ActionHandler(this.game);
-
         var playerId = Math.random() + '';
         this.playerId = playerId;
 
-        //new Planet(game, 0, 0, 0, 'planet-desert');
-        this.transporter = new MessageTransport(this.actionHandler, this.playerId);
-        this.actionHandler.setTransporter(this.transporter);
+        this.actionHandler = new ActionHandler(this.game, this.playerId);
 
+        this.scene = new Scene(this.game);
+
+        //new Planet(game, 0, 0, 0, 'planet-desert');
+        this.transporter = new MessageTransport(this.actionHandler);
+        this.actionHandler.setTransporter(this.transporter);
+        this.actionHandler.createPlayer();
         this.ready = true;
 
 
-        var message = new Message(playerId);
-        message.addPlayer(new Loc(400,400));
-        this.actionHandler.handleMessage(message);
 
-        var message = new Message(playerId);
-        message.logIn();
-        this.actionHandler.handleMessage(message);
+
 
     }
+
+
 
     // preload
     preload() {
         this.game.stage.disableVisibilityChange = true;
         this.game.config.forceSetTimeOut = true;
-        this.game.load.image('space', 'assets/deep-space.jpg');
+        this.game.load.image('space1', 'assets/space1.jpg');
+        this.game.load.image('space2', 'assets/space2.jpg');
         this.game.load.image('bullet', 'assets/bullets.png');
         this.game.load.image('ship', 'assets/ships/fury.png');
         this.game.load.image('dust', 'assets/pixel.png');
@@ -103,12 +103,44 @@ class Game {
 
         for (var key in players) {
             var player = players[key];
-            player.update(this.space);
+            player.update();
+
+            if (player.isCurrentPlayer()) {
+                this.scene.update(player.getObject());
+            }
         }
     }
 
 
 }
+
+class Scene {
+
+    space1;
+    space2;
+
+    constructor(private game: any) {
+        this.space1 = this.game.add.tileSprite(0, 0, 800, 600, 'space1');
+        this.space1.fixedToCamera = true;
+
+        this.space2 = this.game.add.tileSprite(0, 0, 800, 600, 'space2');
+        this.space2.fixedToCamera = true;
+        this.space2.alpha = 0.3;
+    }
+
+    update(object: any) {
+        if (!this.game.camera.atLimit.x) {
+            this.space1.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed ;
+        }
+
+        if (!this.game.camera.atLimit.y) {
+            this.space1.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed ;
+        }
+    }
+}
+
 
 class Connection {
 
@@ -118,7 +150,7 @@ class Connection {
     constructor(transporter: MessageTransport) {
         if (window['WebSocket']) {
             console.log('Connecting');
-            this.conn = new WebSocket("ws://localhost:9090/ws");
+            this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
 
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');
@@ -137,7 +169,10 @@ class Connection {
     }
 
     sendMessage(message: string) {
-        this.conn.send(message)
+        var ws = this.conn;
+        waitForSocketConnection(ws, function(){
+            ws.send(message)
+        });
     }
 }
 
@@ -147,7 +182,7 @@ class MessageTransport {
     connection;
     actionHandler: ActionHandler;
 
-    constructor(actionHandler: ActionHandler, private playerId) {
+    constructor(actionHandler: ActionHandler) {
         console.log('Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
@@ -159,9 +194,7 @@ class MessageTransport {
         var message = Message.fromJson(data);
 
         // do not handle current's player messages from outside
-        if (this.playerId !== message.id) {
-            this.actionHandler.handleMessage(message);
-        }
+        this.actionHandler.handleMessage(message);
     }
 
     sendMessage(message: Message) {
@@ -177,14 +210,30 @@ class ActionHandler {
 
     transporter: MessageTransport;
     players: Players;
+    playerId;
     game;
 
-    constructor(game) {
+    constructor(game, playerId) {
         console.log('ActionHandler::constructor');
         this.players = new Players();
         this.game = game;
+        this.playerId = playerId;
+
     }
 
+    createPlayer() {
+        var message = new Message(this.playerId);
+        message.addPlayer(new Loc(400,400));
+        this.transporter.sendMessage(message);
+
+        var message = new Message(this.playerId);
+        message.logIn();
+        this.transporter.sendMessage(message);
+    }
+
+    /**
+    * Set the message transporter
+    */
     setTransporter(transporter: MessageTransport) {
         console.log('ActionHandler::setTransporter');
         this.transporter = transporter;
@@ -203,12 +252,14 @@ class ActionHandler {
         // if could not found player, create new one
         // and add to list
         if (!player) {
+            console.log('ActionHandler::handleMessage - creating new player, id:' + message.id);
             player = new Player(this.game, message.id);
             this.players.add(message.id, player);
         }
 
         // log in player if required
-        if (message.shouldLogIn()) {
+        console.log(this.playerId + ' ' + message.id);
+        if (message.shouldLogIn() && parseFloat(this.playerId) === parseFloat(message.id)) {
             console.log('ActionHandler::handleMessage - player logged in');
             player.setCurrentPlayer();
             player.setTransporter(this.transporter);
@@ -285,13 +336,31 @@ class Players {
             return this[id];
         }
 
-        console.log('--------------- No player by id found : ' + id + '-------------------')
+        console.log('Players::getPlayer - No player found , id:'  + id);
         return null;
     }
 
     toLookup(): PlayerListInterface {
         return this;
     }
+}
+
+function waitForSocketConnection(socket, callback){
+    setTimeout(
+        function () {
+            if (socket.readyState === 1) {
+                console.log("Connection is made")
+                if(callback != null){
+                    callback();
+                }
+                return;
+
+            } else {
+                console.log("wait for connection...")
+                waitForSocketConnection(socket, callback);
+            }
+
+        }, 5); // wait 5 milisecond for the connection...
 }
 
 var game = new Game();
