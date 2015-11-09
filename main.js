@@ -188,16 +188,8 @@ var Player = (function (_super) {
         message.setLocation(this.getLocation());
         this.transporter.sendMessage(message);
     };
-    Player.prototype.update = function (space) {
+    Player.prototype.update = function () {
         this.moveToLocation();
-        if (this.currentPlayer) {
-            if (!this.game.camera.atLimit.x) {
-                space.tilePosition.x -= (this.getObject().body.velocity.x) * this.game.time.physicsElapsed;
-            }
-            if (!this.game.camera.atLimit.y) {
-                space.tilePosition.y -= (this.getObject().body.velocity.y) * this.game.time.physicsElapsed;
-            }
-        }
     };
     return Player;
 })(ObjectControll);
@@ -240,10 +232,19 @@ var Message = (function () {
     Message.fromJson = function (json) {
         var message = new Message(json.id);
         message.action = json.action;
-        message.destination = Loc.fromJson(json['destination']);
+        if (json['destination']) {
+            message.destination = Loc.fromJson(json['destination']);
+        }
+        if (json['movement']) {
+            message.movement = Movement.fromJson(json['movement']);
+        }
         message.location = Loc.fromJson(json['location']);
-        message.movement = Movement.fromJson(json['movement']);
-        message.properties = Properties.fromJson(json['properties']);
+        if (json['properties']) {
+            message.properties = Properties.fromJson(json['properties']);
+        }
+        if (json['login']) {
+            message.login = json['login'];
+        }
         return message;
     };
     Message.prototype.containsAction = function (action) {
@@ -287,13 +288,22 @@ var Message = (function () {
     Message.prototype.toJson = function () {
         var result = {
             "id": this.id,
-            "action": this.action,
-            "destination": this.destination.toJson(),
-            "movement": this.movement.toJson(),
-            "location": this.location.toJson()
+            "action": this.action
         };
+        if (this.login) {
+            result['login'] = this.login;
+        }
+        if (this.destination) {
+            result['destination'] = this.destination.toJson();
+        }
+        if (this.movement) {
+            result['movement'] = this.movement.toJson();
+        }
         if (this.properties) {
             result["properties"] = this.properties.toJson();
+        }
+        if (this.properties) {
+            result["location"] = this.location.toJson();
         }
         return result;
     };
@@ -334,6 +344,9 @@ var Loc = (function () {
         };
     };
     Loc.fromJson = function (json) {
+        if (!json) {
+            return null;
+        }
         var loc = new Loc(json['x'], json['y']);
         if (json['angle'] && json['velocityy'] && json['velocityx'] && json['angle']) {
             loc.velocityx = json['velocityy'];
@@ -401,8 +414,6 @@ var Game = (function () {
         //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
         this.game.renderer.clearBeforeRender = false;
         //this.game.renderer.roundPixels = true;
-        this.space = this.game.add.tileSprite(0, 0, 800, 600, 'space');
-        this.space.fixedToCamera = true;
         this.game.time.advancedTiming = true;
         //  This will run in Canvas mode, so let's gain a little speed and display
         //game.renderer.clearBeforeRender = false;
@@ -410,22 +421,19 @@ var Game = (function () {
         var playerId = Math.random() + '';
         this.playerId = playerId;
         this.actionHandler = new ActionHandler(this.game, this.playerId);
+        this.scene = new Scene(this.game);
         //new Planet(game, 0, 0, 0, 'planet-desert');
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
+        this.actionHandler.createPlayer();
         this.ready = true;
-        var message = new Message(playerId);
-        message.addPlayer(new Loc(400, 400));
-        this.actionHandler.handleMessage(message);
-        var message = new Message(playerId);
-        message.logIn();
-        this.actionHandler.handleMessage(message);
     };
     // preload
     Game.prototype.preload = function () {
         this.game.stage.disableVisibilityChange = true;
         this.game.config.forceSetTimeOut = true;
-        this.game.load.image('space', 'assets/deep-space.jpg');
+        this.game.load.image('space1', 'assets/space1.jpg');
+        this.game.load.image('space2', 'assets/space2.jpg');
         this.game.load.image('bullet', 'assets/bullets.png');
         this.game.load.image('ship', 'assets/ships/fury.png');
         this.game.load.image('dust', 'assets/pixel.png');
@@ -449,10 +457,34 @@ var Game = (function () {
         var players = this.actionHandler.getPlayers().values();
         for (var key in players) {
             var player = players[key];
-            player.update(this.space);
+            player.update();
+            if (player.isCurrentPlayer()) {
+                this.scene.update(player.getObject());
+            }
         }
     };
     return Game;
+})();
+var Scene = (function () {
+    function Scene(game) {
+        this.game = game;
+        this.space1 = this.game.add.tileSprite(0, 0, 800, 600, 'space1');
+        this.space1.fixedToCamera = true;
+        this.space2 = this.game.add.tileSprite(0, 0, 800, 600, 'space2');
+        this.space2.fixedToCamera = true;
+        this.space2.alpha = 0.3;
+    }
+    Scene.prototype.update = function (object) {
+        if (!this.game.camera.atLimit.x) {
+            this.space1.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed;
+        }
+        if (!this.game.camera.atLimit.y) {
+            this.space1.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed;
+        }
+    };
+    return Scene;
 })();
 var Connection = (function () {
     function Connection(transporter) {
@@ -474,7 +506,10 @@ var Connection = (function () {
         return this.data;
     };
     Connection.prototype.sendMessage = function (message) {
-        this.conn.send(message);
+        var ws = this.conn;
+        waitForSocketConnection(ws, function () {
+            ws.send(message);
+        });
     };
     return Connection;
 })();
@@ -506,6 +541,17 @@ var ActionHandler = (function () {
         this.game = game;
         this.playerId = playerId;
     }
+    ActionHandler.prototype.createPlayer = function () {
+        var message = new Message(this.playerId);
+        message.addPlayer(new Loc(400, 400));
+        this.transporter.sendMessage(message);
+        var message = new Message(this.playerId);
+        message.logIn();
+        this.transporter.sendMessage(message);
+    };
+    /**
+    * Set the message transporter
+    */
     ActionHandler.prototype.setTransporter = function (transporter) {
         console.log('ActionHandler::setTransporter');
         this.transporter = transporter;
@@ -520,11 +566,13 @@ var ActionHandler = (function () {
         // if could not found player, create new one
         // and add to list
         if (!player) {
+            console.log('ActionHandler::handleMessage - creating new player, id:' + message.id);
             player = new Player(this.game, message.id);
             this.players.add(message.id, player);
         }
         // log in player if required
-        if (message.shouldLogIn() && this.playerId == message.id) {
+        console.log(this.playerId + ' ' + message.id);
+        if (message.shouldLogIn() && parseFloat(this.playerId) === parseFloat(message.id)) {
             console.log('ActionHandler::handleMessage - player logged in');
             player.setCurrentPlayer();
             player.setTransporter(this.transporter);
@@ -579,7 +627,7 @@ var Players = (function () {
         if (this.containsKey(id)) {
             return this[id];
         }
-        console.log('--------------- No player by id found : ' + id + '-------------------');
+        console.log('Players::getPlayer - No player found , id:' + id);
         return null;
     };
     Players.prototype.toLookup = function () {
@@ -587,4 +635,19 @@ var Players = (function () {
     };
     return Players;
 })();
+function waitForSocketConnection(socket, callback) {
+    setTimeout(function () {
+        if (socket.readyState === 1) {
+            console.log("Connection is made");
+            if (callback != null) {
+                callback();
+            }
+            return;
+        }
+        else {
+            console.log("wait for connection...");
+            waitForSocketConnection(socket, callback);
+        }
+    }, 5); // wait 5 milisecond for the connection...
+}
 var game = new Game();
