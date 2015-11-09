@@ -396,21 +396,33 @@ var Movement = (function () {
 })();
 /// <reference path="objects/player.ts"/>
 /// <reference path="objects/message.ts"/>
+var resx = 1280;
+var resy = 720;
+var game;
+var playerId;
 var Game = (function () {
     function Game() {
         this.ready = false;
-        this.game = new Phaser.Game(800, 600, Phaser.WEBGL, 'phaser', {
+        this.fullScreenEnabled = false;
+        this.game = new Phaser.Game(resx, resy, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
             create: this.create,
             update: this.update,
             render: this.render
         });
     }
+    Game.prototype.gofullScreen = function () {
+        if (this.game.scale.isFullScreen) {
+        }
+        else {
+            this.game.scale.startFullScreen(true);
+        }
+    };
     // init the world
     Game.prototype.create = function () {
         console.log('Creating world');
         this.game.world.setBounds(0, 0, 20000000, 20000000);
-        this.game.physics.startSystem(Phaser.Physics.ARCADE);
+        this.game.physics.startSystem(Phaser.Physics.AUTO);
         //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
         this.game.renderer.clearBeforeRender = false;
         //this.game.renderer.roundPixels = true;
@@ -426,6 +438,13 @@ var Game = (function () {
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
         this.actionHandler.createPlayer();
+        this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+        // Keep original size
+        // game.scale.fullScreenScaleMode = Phaser.ScaleManager.NO_SCALE;
+        //
+        // Maintain aspect ratio
+        // game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
+        this.game.input.onDown.add(goFullScreen, this);
         this.ready = true;
     };
     // preload
@@ -469,9 +488,9 @@ var Game = (function () {
 var Scene = (function () {
     function Scene(game) {
         this.game = game;
-        this.space1 = this.game.add.tileSprite(0, 0, 800, 600, 'space1');
+        this.space1 = this.game.add.tileSprite(0, 0, resx, resy, 'space1');
         this.space1.fixedToCamera = true;
-        this.space2 = this.game.add.tileSprite(0, 0, 800, 600, 'space2');
+        this.space2 = this.game.add.tileSprite(0, 0, resx, resy, 'space2');
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.4;
         this.createPlanets();
@@ -661,4 +680,6 @@ function waitForSocketConnection(socket, callback) {
         }
     }, 5); // wait 5 milisecond for the connection...
 }
-var game = new Game();
+function goFullScreen() {
+    game.gofullScreen();
+}
