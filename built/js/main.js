@@ -1,5 +1,5 @@
-var resx = 1280;
-var resy = 720;
+var resx = 800;
+var resy = 600;
 var game;
 var playerId;
 var Game = (function () {
@@ -17,25 +17,38 @@ var Game = (function () {
         if (this.game.scale.isFullScreen) {
         }
         else {
-            this.game.scale.startFullScreen(true);
         }
     };
     Game.prototype.create = function () {
         console.log('Creating world');
         this.game.world.setBounds(0, 0, 20000000, 20000000);
-        this.game.physics.startSystem(Phaser.Physics.AUTO);
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.game.renderer.clearBeforeRender = false;
         this.game.time.advancedTiming = true;
-        var playerId = Math.random() + '';
         this.playerId = playerId;
-        this.actionHandler = new ActionHandler(this.game, this.playerId);
         this.scene = new Scene(this.game);
+        this.actionHandler = new ActionHandler(this.game, this.playerId);
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
         this.actionHandler.createPlayer();
         this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.game.input.onDown.add(goFullScreen, this);
         this.ready = true;
+    };
+    Game.prototype.sortedCollide = function (game, arr) {
+        arr.sort(function (a, b) {
+            return leftOfBody(a.body) - leftOfBody(b.body);
+        });
+        for (var i = 0; i < arr.length; ++i) {
+            var elem_i = arr[i];
+            for (var j = i + 1; j < arr.length; ++j) {
+                var elem_j = arr[j];
+                if (rightOfBody(elem_i.body) < leftOfBody(elem_j.body)) {
+                    break;
+                }
+                this.game.physics.arcade.collide(elem_i, elem_j);
+            }
+        }
     };
     Game.prototype.preload = function () {
         this.game.stage.disableVisibilityChange = true;
@@ -51,21 +64,12 @@ var Game = (function () {
     Game.prototype.render = function () {
         this.game.debug.cameraInfo(this.game.camera, 32, 32);
         this.game.debug.text(this.game.time.fps + ' FPS', 740, 32);
-        var currentPLayer = this.actionHandler.getPlayers().getCurrentPlayer();
-        if (currentPLayer) {
-        }
     };
     Game.prototype.update = function () {
-        if (!this.ready || this.actionHandler.getPlayers().length() == 0)
+        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
             return;
-        var players = this.actionHandler.getPlayers().values();
-        for (var key in players) {
-            var player = players[key];
-            player.update();
-            if (player.isCurrentPlayer()) {
-                this.scene.update(player.getObject());
-            }
-        }
+        this.scene.update(this.actionHandler.getPlayer().getShip());
+        this.actionHandler.getUpdateGroups().update();
     };
     return Game;
 })();
@@ -128,18 +132,18 @@ var Connection = (function () {
 })();
 var MessageTransport = (function () {
     function MessageTransport(actionHandler) {
-        console.log('Creating Message transport');
+        console.log(playerId + ':Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
     MessageTransport.prototype.parse = function (messageData) {
-        console.log('MessageTransport::parse');
+        console.log(playerId + ':MessageTransport::parse');
         var data = JSON.parse(messageData);
         var message = Message.fromJson(data);
         this.actionHandler.handleMessage(message);
     };
     MessageTransport.prototype.sendMessage = function (message) {
-        console.log('MessageTransport::sendMessage');
+        console.log(playerId + ':MessageTransport::sendMessage');
         console.log(message);
         var messageData = JSON.stringify(message.toJson());
         this.connection.sendMessage(messageData);
@@ -148,100 +152,65 @@ var MessageTransport = (function () {
 })();
 var ActionHandler = (function () {
     function ActionHandler(game, playerId) {
-        console.log('ActionHandler::constructor');
-        this.players = new Players();
+        console.log(playerId + ':ActionHandler::constructor');
         this.game = game;
         this.playerId = playerId;
+        this.ships = this.game.add.group();
     }
     ActionHandler.prototype.createPlayer = function () {
+        this.player = new Player(this.game, this.transporter);
         var message = new Message(this.playerId);
-        message.addPlayer(new Loc(800, 400));
+        message.logIn(new Loc(300, 300));
         this.transporter.sendMessage(message);
+    };
+    ActionHandler.prototype.broadCast = function () {
+        console.log(playerId + ':ActionHandler::broadCast');
         var message = new Message(this.playerId);
-        message.logIn();
+        message.addPlayer(this.player.getShip().getLocation());
         this.transporter.sendMessage(message);
+    };
+    ActionHandler.prototype.getPlayer = function () {
+        return this.player;
     };
     ActionHandler.prototype.setTransporter = function (transporter) {
-        console.log('ActionHandler::setTransporter');
+        console.log(playerId + ':ActionHandler::setTransporter');
         this.transporter = transporter;
     };
-    ActionHandler.prototype.getPlayers = function () {
-        return this.players;
+    ActionHandler.prototype.getUpdateGroups = function () {
+        return this.ships;
     };
     ActionHandler.prototype.handleMessage = function (message) {
-        console.log('ActionHandler::handleMessage');
-        var player = this.players.getPlayer(message.id);
-        if (!player) {
-            console.log('ActionHandler::handleMessage - creating new player, id:' + message.id);
-            player = new Player(this.game, message.id);
-            this.players.add(message.id, player);
-        }
-        console.log(this.playerId + ' ' + message.id);
-        if (message.shouldLogIn() && parseFloat(this.playerId) === parseFloat(message.id)) {
-            console.log('ActionHandler::handleMessage - player logged in');
-            player.setCurrentPlayer();
-            player.setTransporter(this.transporter);
-        }
-        player.handleMessage(message);
-    };
-    return ActionHandler;
-})();
-var Players = (function () {
-    function Players() {
-        this._keys = [];
-        this._values = [];
-    }
-    Players.prototype.add = function (key, player) {
-        this[key] = player;
-        this._keys.push(key);
-        this._values.push(player);
-    };
-    Players.prototype.remove = function (key) {
-        var index = this._keys.indexOf(key, 0);
-        this._keys.splice(index, 1);
-        this._values.splice(index, 1);
-        delete this[key];
-    };
-    Players.prototype.keys = function () {
-        return this._keys;
-    };
-    Players.prototype.values = function () {
-        return this._values;
-    };
-    Players.prototype.length = function () {
-        return this._values.length;
-    };
-    Players.prototype.containsKey = function (key) {
-        if (typeof this[key] === "undefined") {
-            return false;
-        }
-        return true;
-    };
-    Players.prototype.getCurrentPlayer = function () {
-        for (var key in this._values) {
-            var player = this._values[key];
-            if (player.isCurrentPlayer()) {
-                return player;
+        console.log('ActionHandler::handleMessage - ' + message.action);
+        console.log(message);
+        if (message.action == 'login') {
+            console.log(playerId + ':ActionHandler::handleMessage - ' + message.id + ' just logged in');
+            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
+            this.game.add.existing(ship);
+            this.ships.add(ship);
+            if (message.id == playerId) {
+                console.log(playerId + ':ActionHandler::handleMessage - oh it\'s us. take the ship');
+                this.player.takeControllOver(ship);
+            }
+            else {
+                console.log(playerId + ':ActionHandler::handleMessage - let it know where we are');
+                this.broadCast();
             }
         }
-        return null;
-    };
-    Players.prototype.getPlayer = function (id) {
-        if (this.containsKey(id)) {
-            return this[id];
+        else if (message.action == 'create' && message.id != playerId) {
+            console.log(playerId + ':ActionHandler::handleMessage - received broadcast for: ' + message.id);
+            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
+            this.game.add.existing(ship);
+            this.ships.add(ship);
         }
-        console.log('Players::getPlayer - No player found , id:' + id);
-        return null;
+        this.ships.forEach(function (ship) {
+            ship.handleMessage(message);
+        });
     };
-    Players.prototype.toLookup = function () {
-        return this;
-    };
-    return Players;
+    return ActionHandler;
 })();
 function waitForSocketConnection(socket, callback) {
     setTimeout(function () {
         if (socket.readyState === 1) {
-            console.log("Connection is made");
             if (callback != null) {
                 callback();
             }
@@ -255,4 +224,10 @@ function waitForSocketConnection(socket, callback) {
 }
 function goFullScreen() {
     game.gofullScreen();
+}
+function leftOfBody(b) {
+    return b.x - b.halfWidth;
+}
+function rightOfBody(b) {
+    return b.x + b.halfWidth;
 }

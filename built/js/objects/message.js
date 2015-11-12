@@ -25,8 +25,6 @@ var Properties = (function () {
 })();
 var Message = (function () {
     function Message(id) {
-        this.action = [];
-        this.login = false;
         this.id = id;
     }
     Message.fromJson = function (json) {
@@ -35,48 +33,32 @@ var Message = (function () {
         if (json['destination']) {
             message.destination = Loc.fromJson(json['destination']);
         }
-        if (json['movement']) {
-            message.movement = Movement.fromJson(json['movement']);
+        if (json['location']) {
+            message.location = Loc.fromJson(json['location']);
         }
-        message.location = Loc.fromJson(json['location']);
         if (json['properties']) {
             message.properties = Properties.fromJson(json['properties']);
         }
-        if (json['login']) {
-            message.login = json['login'];
-        }
         return message;
     };
-    Message.prototype.containsAction = function (action) {
-        if (this.action.indexOf(action) > -1) {
-            return true;
-        }
-        return false;
-    };
     Message.prototype.addPlayer = function (location) {
+        this.action = 'create';
         this.location = location;
         this.properties = new Properties();
     };
-    Message.prototype.logIn = function () {
-        this.login = true;
-    };
-    Message.prototype.shouldLogIn = function () {
-        return this.login;
+    Message.prototype.logIn = function (location) {
+        this.action = 'login';
+        this.location = location;
+        this.properties = new Properties();
     };
     Message.prototype.setDestination = function (destination) {
-        this.action.push('destination');
+        this.action = 'destination';
         this.destination = destination;
-        this.movement = new Movement();
         this.properties = new Properties();
     };
     Message.prototype.setLocation = function (location) {
-        this.action.push('location');
+        this.action = 'location';
         this.location = location;
-        this.properties = new Properties();
-    };
-    Message.prototype.setMovement = function (movement) {
-        this.action.push('move');
-        this.movement = movement;
         this.properties = new Properties();
     };
     Message.prototype.hasDestination = function () {
@@ -90,19 +72,13 @@ var Message = (function () {
             "id": this.id,
             "action": this.action
         };
-        if (this.login) {
-            result['login'] = this.login;
-        }
         if (this.destination) {
             result['destination'] = this.destination.toJson();
-        }
-        if (this.movement) {
-            result['movement'] = this.movement.toJson();
         }
         if (this.properties) {
             result["properties"] = this.properties.toJson();
         }
-        if (this.properties) {
+        if (this.location) {
             result["location"] = this.location.toJson();
         }
         return result;
@@ -131,24 +107,42 @@ var Loc = (function () {
         this.velocityy = velocityy;
     };
     Loc.prototype.toJson = function () {
-        return {
+        var loc = {
             "x": this.x,
             "y": this.y,
             "rotation": this.rotation,
-            "angle": this.angle,
             "velocityx": this.velocityx,
             "velocityy": this.velocityy
         };
+        if (typeof this.angle != 'undefined') {
+            loc['angle'] = this.angle;
+        }
+        if (typeof this.rotation != 'undefined') {
+            loc['rotation'] = this.rotation;
+        }
+        if (typeof this.velocityx != 'undefined') {
+            loc['velocityx'] = this.velocityx;
+        }
+        if (typeof this.velocityy != 'undefined') {
+            loc['velocityy'] = this.velocityy;
+        }
+        return loc;
     };
     Loc.fromJson = function (json) {
         if (!json) {
             return null;
         }
         var loc = new Loc(json['x'], json['y']);
-        if (json['angle'] && json['velocityy'] && json['velocityx'] && json['angle']) {
+        if (json['velocityy']) {
             loc.velocityx = json['velocityy'];
+        }
+        if (json['velocityx']) {
             loc.velocityy = json['velocityx'];
+        }
+        if (json['rotation']) {
             loc.rotation = json['rotation'];
+        }
+        if (json['angle']) {
             loc.angle = json['angle'];
         }
         return loc;

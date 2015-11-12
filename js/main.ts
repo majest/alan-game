@@ -1,10 +1,16 @@
+/// <reference path="phaser/typescript/phaser.d.ts" />
+/// <reference path="objects/controll.ts"/>
 /// <reference path="objects/player.ts"/>
 /// <reference path="objects/message.ts"/>
 
-var resx: number = 1280;
-var resy: number = 720;
+
+var resx: number = 800;
+var resy: number = 600;
 var game;
+
 var playerId;
+
+
 
 class Game {
 
@@ -38,7 +44,7 @@ class Game {
         }
         else
         {
-            this.game.scale.startFullScreen(true);
+            //this.game.scale.startFullScreen(true);
         }
     }
 
@@ -47,7 +53,7 @@ class Game {
         console.log('Creating world');
 
         this.game.world.setBounds(0, 0, 20000000, 20000000);
-        this.game.physics.startSystem(Phaser.Physics.AUTO);
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
         //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
 
         this.game.renderer.clearBeforeRender = false;
@@ -60,14 +66,12 @@ class Game {
         //game.renderer.clearBeforeRender = false;
         //game.renderer.roundPixels = true;
 
-
-
-        var playerId = Math.random() + '';
         this.playerId = playerId;
 
+        this.scene = new Scene(this.game);
         this.actionHandler = new ActionHandler(this.game, this.playerId);
 
-        this.scene = new Scene(this.game);
+
 
         //new Planet(game, 0, 0, 0, 'planet-desert');
         this.transporter = new MessageTransport(this.actionHandler);
@@ -80,13 +84,29 @@ class Game {
          // game.scale.fullScreenScaleMode = Phaser.ScaleManager.NO_SCALE;
          //
          // Maintain aspect ratio
-          this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
+        this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
 
         this.game.input.onDown.add(goFullScreen, this);
 
         this.ready = true;
     }
 
+    sortedCollide(game, arr) {
+        arr.sort(function(a,b) {
+            return leftOfBody(a.body) - leftOfBody(b.body);
+        })
+        for (var i = 0; i < arr.length; ++i){
+            var elem_i = arr[i]
+
+            for (var j = i + 1; j < arr.length; ++j) {
+                var elem_j = arr[j]
+                if (rightOfBody(elem_i.body) < leftOfBody(elem_j.body)) {
+                    break;
+                }
+                this.game.physics.arcade.collide(elem_i, elem_j)
+            }
+        }
+    }
 
     // preload
     preload() {
@@ -111,26 +131,17 @@ class Game {
         this.game.debug.text(this.game.time.fps + ' FPS', 740, 32 );
 
         // add currents player sprite info
-        var currentPLayer = this.actionHandler.getPlayers().getCurrentPlayer();
-        if (currentPLayer) {
-            //this.game.debug.spriteInfo(currentPLayer.ship, 32, 128);
-        }
+        // var currentPLayer = this.actionHandler.getPlayers().getCurrentPlayer();
+        // if (currentPLayer) {
+        //     //this.game.debug.spriteInfo(currentPLayer.ship, 32, 128);
+        // }
     }
 
     //update the state
     update() {
-        if (!this.ready || this.actionHandler.getPlayers().length() == 0) return;
-
-        var players = this.actionHandler.getPlayers().values();
-
-        for (var key in players) {
-            var player = players[key];
-            player.update();
-
-            if (player.isCurrentPlayer()) {
-                this.scene.update(player.getObject());
-            }
-        }
+        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0) return;
+        this.scene.update(this.actionHandler.getPlayer().getShip());
+        this.actionHandler.getUpdateGroups().update();
     }
 
 
@@ -217,13 +228,13 @@ class MessageTransport {
     actionHandler: ActionHandler;
 
     constructor(actionHandler: ActionHandler) {
-        console.log('Creating Message transport');
+        console.log(playerId + ':Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
 
     parse(messageData) {
-        console.log('MessageTransport::parse');
+        console.log(playerId + ':MessageTransport::parse');
         var data = JSON.parse(messageData);
         var message = Message.fromJson(data);
 
@@ -232,7 +243,7 @@ class MessageTransport {
     }
 
     sendMessage(message: Message) {
-        console.log('MessageTransport::sendMessage');
+        console.log(playerId + ':MessageTransport::sendMessage');
         console.log(message);
         var messageData = JSON.stringify(message.toJson());
         this.connection.sendMessage(messageData);
@@ -243,147 +254,93 @@ class MessageTransport {
 class ActionHandler {
 
     transporter: MessageTransport;
-    players: Players;
+    player: Player;
+    ships;
     playerId;
     game;
 
     constructor(game, playerId) {
-        console.log('ActionHandler::constructor');
-        this.players = new Players();
+        console.log(playerId + ':ActionHandler::constructor');
         this.game = game;
         this.playerId = playerId;
-
+        this.ships = this.game.add.group();
     }
 
     createPlayer() {
+        this.player = new Player(this.game, this.transporter);
         var message = new Message(this.playerId);
-        message.addPlayer(new Loc(800,400));
-        this.transporter.sendMessage(message);
-
-        var message = new Message(this.playerId);
-        message.logIn();
+        message.logIn(new Loc(300,300));
         this.transporter.sendMessage(message);
     }
 
+    broadCast() {
+        console.log(playerId + ':ActionHandler::broadCast');
+        var message = new Message(this.playerId);
+        message.addPlayer(this.player.getShip().getLocation());
+        this.transporter.sendMessage(message);
+    }
+
+    getPlayer() {
+        return this.player;
+    }
     /**
     * Set the message transporter
     */
     setTransporter(transporter: MessageTransport) {
-        console.log('ActionHandler::setTransporter');
+        console.log(playerId + ':ActionHandler::setTransporter');
         this.transporter = transporter;
     }
 
-    getPlayers(): Players {
-        return this.players;
+    getUpdateGroups() {
+        return this.ships;
     }
 
     handleMessage(message: Message) {
 
-        console.log('ActionHandler::handleMessage');
-        // get the player by id
-        var player = this.players.getPlayer(message.id);
+        console.log('ActionHandler::handleMessage - ' + message.action);
+        console.log(message);
+        // login detected
+        if (message.action == 'login') {
 
-        // if could not found player, create new one
-        // and add to list
-        if (!player) {
-            console.log('ActionHandler::handleMessage - creating new player, id:' + message.id);
-            player = new Player(this.game, message.id);
-            this.players.add(message.id, player);
-        }
+            console.log(playerId + ':ActionHandler::handleMessage - ' + message.id + ' just logged in')
+            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
+            //var ship = new Phaser.Sprite(this.game, 100, 100, 'ship');
+            this.game.add.existing(ship);
+            this.ships.add(ship);
 
-        // log in player if required
-        console.log(this.playerId + ' ' + message.id);
-        if (message.shouldLogIn() && parseFloat(this.playerId) === parseFloat(message.id)) {
-            console.log('ActionHandler::handleMessage - player logged in');
-            player.setCurrentPlayer();
-            player.setTransporter(this.transporter);
-        }
+            // this is us, tale controll over the ship
+            if (message.id == playerId) {
+                console.log(playerId + ':ActionHandler::handleMessage - oh it\'s us. take the ship');
+                this.player.takeControllOver(ship);
 
-        // allow controll to process the message
-        //console.log('Sending message (actions: ' + message.action.join(',') + ') to player: ' + message.id);
-        player.handleMessage(message);
-
-    }
-
-}
-
-
-
-interface PlayerListInterface {
-    add(key: string, value: Player): void;
-    remove(key: string): void;
-    containsKey(key: string): boolean;
-    keys(): string[];
-    values(): Player[];
-}
-
-class Players {
-    _keys: string[] = [];
-    _values: Player[] = [];
-
-    add(key: string, player: Player) {
-        this[key] = player;
-        this._keys.push(key);
-        this._values.push(player);
-    }
-
-    remove(key: string) {
-        var index = this._keys.indexOf(key, 0);
-        this._keys.splice(index, 1);
-        this._values.splice(index, 1);
-
-        delete this[key];
-    }
-
-    keys(): string[] {
-        return this._keys;
-    }
-
-    values(): Player[] {
-        return this._values;
-    }
-
-    length(): number {
-        return this._values.length;
-    }
-
-    containsKey(key: string):boolean {
-        if (typeof this[key] === "undefined") {
-            return false;
-        }
-
-        return true;
-    }
-
-    getCurrentPlayer(): Player {
-        for (var key in this._values) {
-            var player = this._values[key];
-            if (player.isCurrentPlayer()) {
-                return player;
+            // it's not me who logged in, I neeed to broadcast myself so they can see me
+            } else {
+                console.log(playerId + ':ActionHandler::handleMessage - let it know where we are');
+                this.broadCast();
             }
+
+        // broadcasted position when login action was called, don't add self again
+        } else if (message.action == 'create' && message.id != playerId) {
+
+            console.log(playerId + ':ActionHandler::handleMessage - received broadcast for: ' + message.id);
+            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
+            this.game.add.existing(ship);
+            this.ships.add(ship);
         }
-        return null;
-    }
 
-    getPlayer(id: string) {
-        if (this.containsKey(id)){
-            return this[id];
-        }
 
-        console.log('Players::getPlayer - No player found , id:'  + id);
-        return null;
-    }
-
-    toLookup(): PlayerListInterface {
-        return this;
+        // handle message async, it will handle stuff like location and destination
+        this.ships.forEach(function(ship) {
+            ship.handleMessage(message);
+        });
     }
 }
+
 
 function waitForSocketConnection(socket, callback){
     setTimeout(
         function () {
             if (socket.readyState === 1) {
-                console.log("Connection is made")
                 if(callback != null){
                     callback();
                 }
@@ -401,4 +358,11 @@ function waitForSocketConnection(socket, callback){
 
 function goFullScreen() {
     game.gofullScreen();
+}
+
+function leftOfBody(b) {
+    return b.x - b.halfWidth
+}
+function rightOfBody(b) {
+    return b.x + b.halfWidth
 }

@@ -31,12 +31,10 @@ class Properties {
 class Message  {
 
     public id: string;
-    public action: string[] = [];
+    public action: string;
     public destination: Loc;
-    public movement: Movement;
     public location: Loc;
     public properties: Properties;
-    public login: boolean = false;
 
     constructor(id: string) {
         this.id = id;
@@ -51,60 +49,46 @@ class Message  {
             message.destination = Loc.fromJson(json['destination']);
         }
 
-        if (json['movement']) {
-            message.movement = Movement.fromJson(json['movement']);
+        if (json['location']) {
+            message.location = Loc.fromJson(json['location']);
         }
-        message.location = Loc.fromJson(json['location']);
 
         if (json['properties']) {
             message.properties = Properties.fromJson(json['properties']);
         }
 
-        if (json['login']) {
-            message.login = json['login'];
-        }
-
         return message;
     }
 
-    containsAction(action: string) {
-        if (this.action.indexOf(action) >  -1 ) {
-            return true;
-        }
-        return false;
-    }
-
     addPlayer(location: Loc) {
+        this.action = 'create';
         this.location = location;
         this.properties = new Properties();
     }
 
-    logIn() {
-        this.login = true;
-    }
-
-    shouldLogIn() {
-        return this.login;
+    logIn(location: Loc) {
+        this.action = 'login';
+        this.location = location;
+        this.properties = new Properties();
     }
 
     setDestination(destination: Loc) {
-        this.action.push('destination')
+        this.action = 'destination';
         this.destination = destination;
-        this.movement = new Movement();
         this.properties = new Properties();
     }
 
     setLocation(location: Loc) {
-        this.action.push('location')
+        this.action = 'location';
         this.location = location;
         this.properties = new Properties();
     }
 
-    setMovement(movement: Movement) {
-        this.action.push('move')
-        this.movement = movement;
-        this.properties = new Properties();
-    }
+    // setMovement(movement: Movement) {
+    //     this.action = 'move';
+    //     this.movement = movement;
+    //     this.properties = new Properties();
+    // }
 
     hasDestination() {
         if (typeof this.destination !== 'undefined') {
@@ -117,26 +101,21 @@ class Message  {
         var result = {
             "id" : this.id,
             "action" : this.action,
-
-        }
-
-        if (this.login) {
-            result['login'] = this.login;
         }
 
         if (this.destination) {
             result['destination'] = this.destination.toJson();
         }
 
-        if (this.movement) {
-            result['movement'] = this.movement.toJson();
-        }
+        // if (this.movement) {
+        //     result['movement'] = this.movement.toJson();
+        // }
 
         if (this.properties) {
             result["properties"] = this.properties.toJson();
         }
 
-        if (this.properties) {
+        if (this.location) {
             result["location"] = this.location.toJson();
         }
 
@@ -182,14 +161,31 @@ class Loc  {
     }
 
     toJson() {
-        return {
+        var loc = {
             "x" : this.x,
             "y": this.y,
             "rotation" : this.rotation,
-            "angle" : this.angle,
             "velocityx" : this.velocityx,
             "velocityy" : this.velocityy
         }
+
+        if (typeof this.angle != 'undefined') {
+            loc['angle'] = this.angle;
+        }
+
+        if (typeof this.rotation != 'undefined') {
+            loc['rotation'] = this.rotation;
+        }
+
+        if (typeof this.velocityx != 'undefined') {
+            loc['velocityx'] = this.velocityx;
+        }
+
+        if (typeof this.velocityy != 'undefined') {
+            loc['velocityy'] = this.velocityy;
+        }
+
+        return loc;
     }
 
     public static fromJson(json: any) : Loc{
@@ -200,12 +196,22 @@ class Loc  {
 
         var loc = new Loc(json['x'], json['y']);
 
-        if (json['angle'] && json['velocityy'] && json['velocityx'] && json['angle']) {
+        if (json['velocityy'])  {
             loc.velocityx = json['velocityy'];
+        }
+
+        if (json['velocityx'])  {
             loc.velocityy = json['velocityx'];
+        }
+
+        if (json['rotation'])  {
             loc.rotation = json['rotation'];
+        }
+
+        if (json['angle'])  {
             loc.angle = json['angle'];
         }
+
         return loc;
     }
 }
