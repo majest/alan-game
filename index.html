@@ -7,9 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <script src="js/phaser.min.js"></script>
+    <script src="js/phaser.min.js?1"></script>
 
-    <!-- Bootstrap -->
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -21,29 +20,29 @@
   <body>
 
 
-<div id="phaser" style="display:none; width:100%; height:100%; position:relative;"></div>
+<div id="phaser" style="display:none; width:800px; height:600px;"></div>
 
 <!-- Button trigger modal -->
 
-<!-- Modal -->
-<div class="pure" id="startScreen">
-    <div class="pure-u-1-3"></div>
-    <div class="pure-u-1-3">
-        <form class="pure-form">
-        <fieldset>
-        <input style="margin: 5px; padding: 5px;" type="playerId"  id="playerId" placeholder="Name"><button class="pure-button pure-button-primary" id="login" type="button">
-              START
-        </button>
-        </fieldset>
-        </form>
+    <div class="pure" id="startScreen">
+        <div class="pure-u-1-3"></div>
+        <div class="pure-u-1-3">
+            <form class="pure-form">
+            <fieldset>
+            <input style="margin: 5px; padding: 5px;" type="playerId"  id="playerId" placeholder="Name"><button class="pure-button pure-button-primary" id="login" type="button">
+                  START
+            </button>
+            </fieldset>
+            </form>
+        </div>
+        <div class="pure-u-1-3"></div>
     </div>
-    <div class="pure-u-1-3"></div>
-</div>
+
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="main.js"></script>
     <script src="js/init.js"></script>
+    <script src="main.js"></script>
+
 
   </body>
 </html>

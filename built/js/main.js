@@ -68,6 +68,7 @@ var Game = (function () {
     Game.prototype.update = function () {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
             return;
+        this.game.physics.arcade.collide(this.actionHandler.getUpdateGroups());
         this.scene.update(this.actionHandler.getPlayer().getShip());
         this.actionHandler.getUpdateGroups().update();
     };

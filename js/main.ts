@@ -140,6 +140,8 @@ class Game {
     //update the state
     update() {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0) return;
+        this.game.physics.arcade.collide(this.actionHandler.getUpdateGroups());
+
         this.scene.update(this.actionHandler.getPlayer().getShip());
         this.actionHandler.getUpdateGroups().update();
     }
