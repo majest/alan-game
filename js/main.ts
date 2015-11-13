@@ -278,9 +278,9 @@ class ActionHandler {
         message.logIn(new Loc(300,300));
         this.transporter.sendMessage(message);
 
-        var message = new Message('DUMMY');
-        message.addPlayer(new Loc(400,300));
-        this.transporter.sendMessage(message);
+        // var message = new Message('DUMMY');
+        // message.addPlayer(new Loc(400,300));
+        // this.transporter.sendMessage(message);
         //
         // var spr = this.game.add.group();
         // spr.create(300, 300, 'crosshair');

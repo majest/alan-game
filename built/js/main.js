@@ -160,9 +160,6 @@ var ActionHandler = (function () {
         var message = new Message(this.playerId);
         message.logIn(new Loc(300, 300));
         this.transporter.sendMessage(message);
-        var message = new Message('DUMMY');
-        message.addPlayer(new Loc(400, 300));
-        this.transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
         console.log(playerId + ':ActionHandler::broadCast');
