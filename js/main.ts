@@ -10,8 +10,6 @@ var game;
 
 var playerId;
 
-
-
 class Game {
 
     ready: boolean = false;
@@ -69,7 +67,8 @@ class Game {
         this.playerId = playerId;
 
         this.scene = new Scene(this.game);
-        this.actionHandler = new ActionHandler(this.game, this.playerId);
+        this.actionHandler = ActionHandler.getInstance();
+        this.actionHandler.init(this.game, this.playerId);
 
 
 
@@ -91,22 +90,7 @@ class Game {
         this.ready = true;
     }
 
-    sortedCollide(game, arr) {
-        arr.sort(function(a,b) {
-            return leftOfBody(a.body) - leftOfBody(b.body);
-        })
-        for (var i = 0; i < arr.length; ++i){
-            var elem_i = arr[i]
 
-            for (var j = i + 1; j < arr.length; ++j) {
-                var elem_j = arr[j]
-                if (rightOfBody(elem_i.body) < leftOfBody(elem_j.body)) {
-                    break;
-                }
-                this.game.physics.arcade.collide(elem_i, elem_j)
-            }
-        }
-    }
 
     // preload
     preload() {
@@ -119,6 +103,7 @@ class Game {
         this.game.load.image('dust', 'assets/pixel.png');
         this.game.load.image('planet-earth', 'assets/planets/earth.png');
         this.game.load.image('planet-desert', 'assets/planets/desert.png');
+        this.game.load.image('crosshair', 'assets/crosshair.png');
     }
 
     // debug
@@ -140,11 +125,13 @@ class Game {
     //update the state
     update() {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0) return;
-        this.game.physics.arcade.collide(this.actionHandler.getUpdateGroups());
+        this.actionHandler.sortedCollide(this.game, this.actionHandler.getUpdateGroups().children);
 
         this.scene.update(this.actionHandler.getPlayer().getShip());
         this.actionHandler.getUpdateGroups().update();
     }
+
+
 
 
 }
@@ -261,18 +248,42 @@ class ActionHandler {
     playerId;
     game;
 
-    constructor(game, playerId) {
-        console.log(playerId + ':ActionHandler::constructor');
+    private static _instance:ActionHandler = new ActionHandler();
+
+    private _score:number = 0;
+
+    constructor() {
+        if(ActionHandler._instance){
+         throw new Error("Error: Instantiation failed: Use SingletonDemo.getInstance() instead of new.");
+        }
+        ActionHandler._instance = this;
+    }
+
+    public static getInstance():ActionHandler
+    {
+        return ActionHandler._instance;
+    }
+
+    init(game, playerId) {
+        console.log(playerId + ':ActionHandler::init');
         this.game = game;
         this.playerId = playerId;
-        this.ships = this.game.add.group();
+        this.ships = new Group.Ship(this.game);
     }
 
     createPlayer() {
         this.player = new Player(this.game, this.transporter);
+
         var message = new Message(this.playerId);
         message.logIn(new Loc(300,300));
         this.transporter.sendMessage(message);
+
+        var message = new Message('DUMMY');
+        message.addPlayer(new Loc(400,300));
+        this.transporter.sendMessage(message);
+        //
+        // var spr = this.game.add.group();
+        // spr.create(300, 300, 'crosshair');
     }
 
     broadCast() {
@@ -284,6 +295,10 @@ class ActionHandler {
 
     getPlayer() {
         return this.player;
+    }
+
+    getShips() {
+        return this.ships;
     }
     /**
     * Set the message transporter
@@ -336,6 +351,33 @@ class ActionHandler {
             ship.handleMessage(message);
         });
     }
+
+    leftOfBody(b) {
+        return b.x - b.halfWidth
+    }
+    rightOfBody(b) {
+        return b.x + b.halfWidth
+    }
+
+    sortedCollide(game, arr) {
+
+        var $this = this;
+        arr.sort(function(a,b) {
+            return $this.leftOfBody(a.body) - $this.leftOfBody(b.body);
+        })
+        for (var i = 0; i < arr.length; ++i){
+            var elem_i = arr[i]
+
+            for (var j = i + 1; j < arr.length; ++j) {
+                var elem_j = arr[j]
+                if ($this.rightOfBody(elem_i.body) < $this.leftOfBody(elem_j.body)) {
+                    break;
+                }
+                $this.game.physics.arcade.collide(elem_i, elem_j)
+            }
+        }
+    }
+
 }
 
 
@@ -360,11 +402,4 @@ function waitForSocketConnection(socket, callback){
 
 function goFullScreen() {
     game.gofullScreen();
-}
-
-function leftOfBody(b) {
-    return b.x - b.halfWidth
-}
-function rightOfBody(b) {
-    return b.x + b.halfWidth
 }

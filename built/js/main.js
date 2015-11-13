@@ -27,28 +27,14 @@ var Game = (function () {
         this.game.time.advancedTiming = true;
         this.playerId = playerId;
         this.scene = new Scene(this.game);
-        this.actionHandler = new ActionHandler(this.game, this.playerId);
+        this.actionHandler = ActionHandler.getInstance();
+        this.actionHandler.init(this.game, this.playerId);
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
         this.actionHandler.createPlayer();
         this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.game.input.onDown.add(goFullScreen, this);
         this.ready = true;
-    };
-    Game.prototype.sortedCollide = function (game, arr) {
-        arr.sort(function (a, b) {
-            return leftOfBody(a.body) - leftOfBody(b.body);
-        });
-        for (var i = 0; i < arr.length; ++i) {
-            var elem_i = arr[i];
-            for (var j = i + 1; j < arr.length; ++j) {
-                var elem_j = arr[j];
-                if (rightOfBody(elem_i.body) < leftOfBody(elem_j.body)) {
-                    break;
-                }
-                this.game.physics.arcade.collide(elem_i, elem_j);
-            }
-        }
     };
     Game.prototype.preload = function () {
         this.game.stage.disableVisibilityChange = true;
@@ -60,6 +46,7 @@ var Game = (function () {
         this.game.load.image('dust', 'assets/pixel.png');
         this.game.load.image('planet-earth', 'assets/planets/earth.png');
         this.game.load.image('planet-desert', 'assets/planets/desert.png');
+        this.game.load.image('crosshair', 'assets/crosshair.png');
     };
     Game.prototype.render = function () {
         this.game.debug.cameraInfo(this.game.camera, 32, 32);
@@ -68,7 +55,7 @@ var Game = (function () {
     Game.prototype.update = function () {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
             return;
-        this.game.physics.arcade.collide(this.actionHandler.getUpdateGroups());
+        this.actionHandler.sortedCollide(this.game, this.actionHandler.getUpdateGroups().children);
         this.scene.update(this.actionHandler.getPlayer().getShip());
         this.actionHandler.getUpdateGroups().update();
     };
@@ -152,16 +139,29 @@ var MessageTransport = (function () {
     return MessageTransport;
 })();
 var ActionHandler = (function () {
-    function ActionHandler(game, playerId) {
-        console.log(playerId + ':ActionHandler::constructor');
+    function ActionHandler() {
+        this._score = 0;
+        if (ActionHandler._instance) {
+            throw new Error("Error: Instantiation failed: Use SingletonDemo.getInstance() instead of new.");
+        }
+        ActionHandler._instance = this;
+    }
+    ActionHandler.getInstance = function () {
+        return ActionHandler._instance;
+    };
+    ActionHandler.prototype.init = function (game, playerId) {
+        console.log(playerId + ':ActionHandler::init');
         this.game = game;
         this.playerId = playerId;
-        this.ships = this.game.add.group();
-    }
+        this.ships = new Group.Ship(this.game);
+    };
     ActionHandler.prototype.createPlayer = function () {
         this.player = new Player(this.game, this.transporter);
         var message = new Message(this.playerId);
         message.logIn(new Loc(300, 300));
+        this.transporter.sendMessage(message);
+        var message = new Message('DUMMY');
+        message.addPlayer(new Loc(400, 300));
         this.transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
@@ -172,6 +172,9 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.getPlayer = function () {
         return this.player;
+    };
+    ActionHandler.prototype.getShips = function () {
+        return this.ships;
     };
     ActionHandler.prototype.setTransporter = function (transporter) {
         console.log(playerId + ':ActionHandler::setTransporter');
@@ -207,6 +210,29 @@ var ActionHandler = (function () {
             ship.handleMessage(message);
         });
     };
+    ActionHandler.prototype.leftOfBody = function (b) {
+        return b.x - b.halfWidth;
+    };
+    ActionHandler.prototype.rightOfBody = function (b) {
+        return b.x + b.halfWidth;
+    };
+    ActionHandler.prototype.sortedCollide = function (game, arr) {
+        var $this = this;
+        arr.sort(function (a, b) {
+            return $this.leftOfBody(a.body) - $this.leftOfBody(b.body);
+        });
+        for (var i = 0; i < arr.length; ++i) {
+            var elem_i = arr[i];
+            for (var j = i + 1; j < arr.length; ++j) {
+                var elem_j = arr[j];
+                if ($this.rightOfBody(elem_i.body) < $this.leftOfBody(elem_j.body)) {
+                    break;
+                }
+                $this.game.physics.arcade.collide(elem_i, elem_j);
+            }
+        }
+    };
+    ActionHandler._instance = new ActionHandler();
     return ActionHandler;
 })();
 function waitForSocketConnection(socket, callback) {
@@ -225,10 +251,4 @@ function waitForSocketConnection(socket, callback) {
 }
 function goFullScreen() {
     game.gofullScreen();
-}
-function leftOfBody(b) {
-    return b.x - b.halfWidth;
-}
-function rightOfBody(b) {
-    return b.x + b.halfWidth;
 }
