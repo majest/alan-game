@@ -158,23 +158,110 @@ var Ship;
     var Ship = (function (_super) {
         __extends(Ship, _super);
         function Ship(game, x, y, id) {
-            console.log('Ship::constructor - x,y' + x + ',' + y);
             _super.call(this, game, x, y, 'ship', 0);
+            this.fireRate = 100;
+            this.nextFire = 0;
+            this.fireDuration = 0;
+            console.log('Ship::constructor - x,y' + x + ',' + y);
             this.properties = new Properties();
             //game.add.existing(this);
-            this.id = id;
             game.physics.enable(this, Phaser.Physics.ARCADE);
+            this.bullets = this.game.add.group();
+            this.bullets.enableBody = true;
+            this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
+            this.bullets.createMultiple(50, 'bullet');
+            this.bullets.setAll('checkWorldBounds', true);
+            this.bullets.setAll('outOfBoundsKill', true);
             //this.ship.body.setZeroRotation();
             //this.ship.body.allowRotation = true;
             this.body.drag.set(this.properties.breakingForce);
             this.body.maxVelocity.set(this.properties.speed);
             this.body.angularDrag = 50;
+            this.body.id = id;
+            this.id = id;
             this.scale.setTo(0.5, 0.5);
             this.anchor.setTo(0.5, 0.5);
+            this.inputEnabled = true;
             this.addName();
+            this.events.onInputDown.add(this.acquireTarget, this);
+            this.actionHandler = ActionHandler.getInstance();
+            // .existing(crosshair);
+            //this.crosshair = Phaser.Sprite.call(this,game,x,y,'crosshair');
+            this.sprites = this.game.add.group();
+            this.crosshair = this.game.add.sprite(x, y, 'crosshair');
+            this.crosshair.anchor.setTo(0.5, 0.5);
+            this.crosshair.visible = false;
+            this.sprites.add(this.crosshair);
+            //this.game.input.onDown.add(this.acquireTarget, this);
+            //this.crosshair.visible = true;
+            // this.sprites.forEach(function(sprite){
+            //     // Here you can apply the same properties to every cup.
+            // //    sprite.anchor.setTo(0.5,0.5);
+            //     sprite.visible = false;
+            // });
+            console.log('--------------------');
+            // console.log(crosshair);
+            // this.sprites.push(crosshair);
         }
         Ship.prototype.update = function () {
+            this.crosshair.x = this.x;
+            this.crosshair.y = this.y;
+            // if (this.id != playerId) {
+            // this.sprites.forEach(function(cup){
+            //     cup.x= this.x
+            //     cup.y= this.y
+            // });
+            // }
+            if (this.target) {
+                this.fire(this.target);
+            }
+            //  Run collision
+            if (this.bullets) {
+                this.game.physics.arcade.overlap(this.bullets, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
+            }
             this.moveToLocation();
+        };
+        Ship.prototype.bulletCollisionHandler = function (bullet, ship) {
+            // ignore the colision for ourselfs
+            if (ship.id == playerId)
+                return;
+            bullet.kill();
+        };
+        // fires a bullet
+        Ship.prototype.fire = function (ship) {
+            // if current time is less than a time + fire duration  - this makes sure we fire only one serie
+            // and ship we are shooting at is not us
+            // and curretnt ime is more than a next fire - which means it's time to shoot a bullet
+            // and number of dead bullets is more than
+            if (this.game.time.now < this.fireDuration && ship.id != playerId && this.game.time.now > this.nextFire && this.bullets.countDead() > 0) {
+                console.log('shoot2');
+                // correct the time so we should the next one after firerate
+                this.nextFire = this.game.time.now + this.fireRate;
+                // get the first dead bullet
+                var bullet = this.bullets.getFirstDead();
+                // reset the position the bullet so it looks like it comes out from our ship
+                bullet.reset(this.x - 8, this.y - 8);
+                // shoot the bullets towards the target
+                this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300); // .moveToPointer(bullet, 300);
+            }
+        };
+        // acquire target - makes the crosshair visible on the ship we have clicked on
+        Ship.prototype.acquireTarget = function (ship, pointer) {
+            console.log(playerId + ':Ship::acquireTarget');
+            if (ship.id != playerId) {
+                var player = this.actionHandler.getPlayer().getShip();
+                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ' as a target of ship: ' + player.id);
+                // set this ship which is targetted on the ship which is targetting - current player
+                player.setTarget(this);
+                // make the crosshair visible
+                this.crosshair.visible = true;
+                return this.crosshair;
+            }
+        };
+        Ship.prototype.setTarget = function (target) {
+            console.log(playerId + ':Ship::setTarget');
+            this.fireDuration = this.game.time.now + 1000;
+            this.target = target;
         };
         Ship.prototype.handleMessage = function (message) {
             console.log(playerId + ':Ship::handleMessage - action:' + message.action);
@@ -183,14 +270,34 @@ var Ship;
                 console.log(playerId + ':Ship::handleMessage I\'m ' + this.id + ' and this message is for: ' + message.id);
                 return;
             }
+            if (message.location) {
+                console.log(playerId + ':Ship::handleMessage - handling location for ship ' + message.id);
+                //this.setLocation(message.location);
+                this.x = message.location.x;
+                this.y = message.location.y;
+                // lag correction
+                var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
+                var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
+                this.x += xfix;
+                this.y += yfix;
+                if (typeof message.location.rotation != 'undefined') {
+                    this.rotation = message.location.rotation;
+                }
+                if (typeof message.location.angle != 'undefined') {
+                    this.angle = message.location.angle;
+                }
+                if (typeof message.location.velocityx != 'undefined') {
+                    this.body.velocity.x = message.location.velocityx;
+                }
+                if (typeof message.location.velocityy != 'undefined') {
+                    this.body.velocity.y = message.location.velocityy;
+                }
+            }
             // handle destination at all times
             if (message.destination) {
                 console.log(playerId + ':Ship::handleMessage - handling destination');
                 console.log(message.destination);
                 this.destination = message.destination;
-            }
-            else if (message.location && message.id != playerId) {
-                console.log(playerId + ':Ship::handleMessage - handling location for ship ' + message.id);
             }
         };
         Ship.prototype.move = function () {
@@ -238,6 +345,8 @@ var Ship;
             }
             this.rotationSpeed(this.move());
             this.updateName();
+            // this.sprites.x = this.x;
+            // this.sprites.y = this.y;
         };
         Ship.prototype.addName = function () {
             console.log('Ship::addName');
@@ -249,11 +358,12 @@ var Ship;
             this.name.x = Math.floor(this.x + this.width / 2) - this.width + 10;
             this.name.y = Math.floor(this.y + this.height / 2) - this.height - 10;
         };
+        Ship.prototype.updateSprites = function () {
+        };
         Ship.prototype.getLocation = function () {
             var loc = new Loc(this.x, this.y);
             loc.setState(this.rotation, this.angle, this.body.velocity.x, this.body.velocity.y);
             console.log(loc);
-            console.log(this);
             return loc;
         };
         Ship.prototype.setLocation = function (loc) {
@@ -270,11 +380,13 @@ var Group;
 (function (Group) {
     var Ship = (function (_super) {
         __extends(Ship, _super);
+        //ships: Ship.Ship[] = [];
         function Ship(game) {
             _super.call(this, game);
         }
         Ship.prototype.add = function (sprite) {
             _super.prototype.add.call(this, sprite);
+            //this.ships.push(sprite);
         };
         return Ship;
     })(Phaser.Group);
@@ -522,7 +634,8 @@ var Game = (function () {
         //game.renderer.roundPixels = true;
         this.playerId = playerId;
         this.scene = new Scene(this.game);
-        this.actionHandler = new ActionHandler(this.game, this.playerId);
+        this.actionHandler = ActionHandler.getInstance();
+        this.actionHandler.init(this.game, this.playerId);
         //new Planet(game, 0, 0, 0, 'planet-desert');
         this.transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.setTransporter(this.transporter);
@@ -536,21 +649,6 @@ var Game = (function () {
         this.game.input.onDown.add(goFullScreen, this);
         this.ready = true;
     };
-    Game.prototype.sortedCollide = function (game, arr) {
-        arr.sort(function (a, b) {
-            return leftOfBody(a.body) - leftOfBody(b.body);
-        });
-        for (var i = 0; i < arr.length; ++i) {
-            var elem_i = arr[i];
-            for (var j = i + 1; j < arr.length; ++j) {
-                var elem_j = arr[j];
-                if (rightOfBody(elem_i.body) < leftOfBody(elem_j.body)) {
-                    break;
-                }
-                this.game.physics.arcade.collide(elem_i, elem_j);
-            }
-        }
-    };
     // preload
     Game.prototype.preload = function () {
         this.game.stage.disableVisibilityChange = true;
@@ -562,6 +660,7 @@ var Game = (function () {
         this.game.load.image('dust', 'assets/pixel.png');
         this.game.load.image('planet-earth', 'assets/planets/earth.png');
         this.game.load.image('planet-desert', 'assets/planets/desert.png');
+        this.game.load.image('crosshair', 'assets/crosshair.png');
     };
     // debug
     Game.prototype.render = function () {
@@ -579,7 +678,7 @@ var Game = (function () {
     Game.prototype.update = function () {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
             return;
-        this.game.physics.arcade.collide(this.actionHandler.getUpdateGroups());
+        this.actionHandler.sortedCollide(this.game, this.actionHandler.getUpdateGroups().children);
         this.scene.update(this.actionHandler.getPlayer().getShip());
         this.actionHandler.getUpdateGroups().update();
     };
@@ -665,17 +764,33 @@ var MessageTransport = (function () {
     return MessageTransport;
 })();
 var ActionHandler = (function () {
-    function ActionHandler(game, playerId) {
-        console.log(playerId + ':ActionHandler::constructor');
+    function ActionHandler() {
+        this._score = 0;
+        if (ActionHandler._instance) {
+            throw new Error("Error: Instantiation failed: Use SingletonDemo.getInstance() instead of new.");
+        }
+        ActionHandler._instance = this;
+    }
+    ActionHandler.getInstance = function () {
+        return ActionHandler._instance;
+    };
+    ActionHandler.prototype.init = function (game, playerId) {
+        console.log(playerId + ':ActionHandler::init');
         this.game = game;
         this.playerId = playerId;
-        this.ships = this.game.add.group();
-    }
+        this.ships = new Group.Ship(this.game);
+    };
     ActionHandler.prototype.createPlayer = function () {
         this.player = new Player(this.game, this.transporter);
         var message = new Message(this.playerId);
         message.logIn(new Loc(300, 300));
         this.transporter.sendMessage(message);
+        var message = new Message('DUMMY');
+        message.addPlayer(new Loc(400, 300));
+        this.transporter.sendMessage(message);
+        //
+        // var spr = this.game.add.group();
+        // spr.create(300, 300, 'crosshair');
     };
     ActionHandler.prototype.broadCast = function () {
         console.log(playerId + ':ActionHandler::broadCast');
@@ -685,6 +800,9 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.getPlayer = function () {
         return this.player;
+    };
+    ActionHandler.prototype.getShips = function () {
+        return this.ships;
     };
     /**
     * Set the message transporter
@@ -727,6 +845,29 @@ var ActionHandler = (function () {
             ship.handleMessage(message);
         });
     };
+    ActionHandler.prototype.leftOfBody = function (b) {
+        return b.x - b.halfWidth;
+    };
+    ActionHandler.prototype.rightOfBody = function (b) {
+        return b.x + b.halfWidth;
+    };
+    ActionHandler.prototype.sortedCollide = function (game, arr) {
+        var $this = this;
+        arr.sort(function (a, b) {
+            return $this.leftOfBody(a.body) - $this.leftOfBody(b.body);
+        });
+        for (var i = 0; i < arr.length; ++i) {
+            var elem_i = arr[i];
+            for (var j = i + 1; j < arr.length; ++j) {
+                var elem_j = arr[j];
+                if ($this.rightOfBody(elem_i.body) < $this.leftOfBody(elem_j.body)) {
+                    break;
+                }
+                $this.game.physics.arcade.collide(elem_i, elem_j);
+            }
+        }
+    };
+    ActionHandler._instance = new ActionHandler();
     return ActionHandler;
 })();
 function waitForSocketConnection(socket, callback) {
@@ -745,10 +886,4 @@ function waitForSocketConnection(socket, callback) {
 }
 function goFullScreen() {
     game.gofullScreen();
-}
-function leftOfBody(b) {
-    return b.x - b.halfWidth;
-}
-function rightOfBody(b) {
-    return b.x + b.halfWidth;
 }
