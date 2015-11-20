@@ -1,5 +1,5 @@
-var resx = 640;
-var resy = 640;
+var resx = 1280;
+var resy = 800;
 var game;
 var firstRunLandscape;
 var playerId;
@@ -62,15 +62,13 @@ var Game = (function () {
             if (firstRunLandscape) {
                 gameRatio = window.innerWidth / window.innerHeight;
                 this.game.width = Math.ceil(resx * gameRatio);
-                this.game.height = resy;
+                this.game.height = Math.ceil(resy * gameRatio);
+                ;
                 this.game.renderer.resize(this.game.width, this.game.height);
-                this.game.state.start("Play");
             }
         }
     };
     Game.prototype.handleIncorrect = function () {
-        if (!this.game.device.desktop) {
-        }
     };
     Game.prototype.render = function () {
         this.game.debug.cameraInfo(this.game.camera, 32, 32);

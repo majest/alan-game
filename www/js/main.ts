@@ -4,8 +4,8 @@
 /// <reference path="objects/message.ts"/>
 
 
-var resx: number = 640;
-var resy: number = 640;
+var resx: number = 1280;
+var resy: number = 800;
 var game;
 var firstRunLandscape;
 var playerId;
@@ -99,6 +99,7 @@ class Game {
     // preload
     preload() {
         firstRunLandscape = this.game.scale.isGameLandscape;
+
         console.log('=========== firstRunLandscape' + firstRunLandscape + '==================');
         this.game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.game.stage.disableVisibilityChange = true;
@@ -121,18 +122,21 @@ class Game {
             if(firstRunLandscape){
                 gameRatio = window.innerWidth/window.innerHeight;
                 this.game.width = Math.ceil(resx*gameRatio);
-                this.game.height = resy;
+                this.game.height = Math.ceil(resy*gameRatio);;
                 this.game.renderer.resize(this.game.width,this.game.height);
-                this.game.state.start("Play");
+                //this.game.state.start("Play");
             }
         //    document.getElementById("turn").style.display="none";
         }
     }
 
     handleIncorrect() {
-        if(!this.game.device.desktop){
-        //    document.getElementById("turn").style.display="block";
-        }
+        // if(!this.game.device.desktop){
+        //     gameRatio = window.innerWidth/window.innerHeight;
+        //     this.game.width = Math.ceil(resx*gameRatio);
+        //     this.game.height = Math.ceil(resy*gameRatio);;
+        //     this.game.renderer.resize(this.game.width,this.game.height);
+        // }
     }
     // debug
     render() {

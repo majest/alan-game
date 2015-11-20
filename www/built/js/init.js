@@ -3,17 +3,10 @@ var game;
 window.onload = function () {
     document.getElementById("login").addEventListener("click", function () {
         playerId = document.getElementById('playerId').value;
-        hideshow('startScreen');
-        hideshow('phaser');
+        var startscreen = document.getElementById('startScreen');
+        startscreen.style.display = 'none';
+        var startscreen = document.getElementById('phaser');
+        startscreen.style.display = 'block';
         game = new Game();
     });
 };
-function hideshow(which) {
-    var element = document.getElementById(which);
-    if (element.style.display == "block") {
-        element.style.display = "none";
-    }
-    else {
-        element.style.display = "block";
-    }
-}
