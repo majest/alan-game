@@ -3,8 +3,8 @@
         "module": "commonjs",
         "target": "es3",
         "noImplicitAny": false,
-        "outDir": "built",
-        "rootDir": ".",
+        "outDir": "www/built",
+        "rootDir": "www",
         "sourceMap": false
     },
     "exclude": [

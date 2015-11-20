@@ -75,7 +75,7 @@ class Message  {
         this.action = 'shoot';
         this.target = ship.id;
     }
-    
+
     logIn(location: Loc) {
         this.action = 'login';
         this.location = location;
