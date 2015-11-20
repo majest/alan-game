@@ -4,11 +4,13 @@
 /// <reference path="objects/message.ts"/>
 
 
-var resx: number = 800;
-var resy: number = 600;
+var resx: number = 640;
+var resy: number = 640;
 var game;
-
+var firstRunLandscape;
 var playerId;
+var gameRatio;
+
 
 class Game {
 
@@ -26,8 +28,10 @@ class Game {
     scene;
 
     fullScreenEnabled: boolean = false;
+
     constructor() {
-        this.game = new Phaser.Game(resx, resy, Phaser.WEBGL, 'phaser', {
+        gameRatio = window.innerWidth/window.innerHeight;
+        this.game = new Phaser.Game(Math.ceil(resx*gameRatio), resy, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
             create: this.create,
             update: this.update,
@@ -94,8 +98,14 @@ class Game {
 
     // preload
     preload() {
+        firstRunLandscape = this.game.scale.isGameLandscape;
+        console.log('=========== firstRunLandscape' + firstRunLandscape + '==================');
+        this.game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.game.stage.disableVisibilityChange = true;
         this.game.config.forceSetTimeOut = true;
+        this.game.scale.forceOrientation(false, true);
+        this.game.scale.enterIncorrectOrientation.add(handleIncorrect);
+        this.game.scale.leaveIncorrectOrientation.add(handleCorrect);
         this.game.load.image('space1', 'assets/space1.jpg');
         this.game.load.image('space2', 'assets/space2.jpg');
         this.game.load.image('bullet', 'assets/bullets.png');
@@ -106,6 +116,24 @@ class Game {
         this.game.load.image('crosshair', 'assets/crosshair.png');
     }
 
+    handleCorrect() {
+        if(!this.game.device.desktop){
+            if(firstRunLandscape){
+                gameRatio = window.innerWidth/window.innerHeight;
+                this.game.width = Math.ceil(resx*gameRatio);
+                this.game.height = resy;
+                this.game.renderer.resize(this.game.width,this.game.height);
+                this.game.state.start("Play");
+            }
+        //    document.getElementById("turn").style.display="none";
+        }
+    }
+
+    handleIncorrect() {
+        if(!this.game.device.desktop){
+        //    document.getElementById("turn").style.display="block";
+        }
+    }
     // debug
     render() {
 
@@ -142,10 +170,10 @@ class Scene {
     space2;
 
     constructor(private game: any) {
-        this.space1 = this.game.add.tileSprite(0, 0, resx, resy, 'space1');
+        this.space1 = this.game.add.tileSprite(0, 0, Math.ceil(resx*gameRatio), resy, 'space1');
         this.space1.fixedToCamera = true;
 
-        this.space2 = this.game.add.tileSprite(0, 0, resx, resy, 'space2');
+        this.space2 = this.game.add.tileSprite(0, 0, Math.ceil(resx*gameRatio), resy, 'space2');
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.4;
 
@@ -278,9 +306,9 @@ class ActionHandler {
         message.logIn(new Loc(300,300));
         this.transporter.sendMessage(message);
 
-        // var message = new Message('DUMMY');
-        // message.addPlayer(new Loc(400,300));
-        // this.transporter.sendMessage(message);
+        var message = new Message('DUMMY');
+        message.addPlayer(new Loc(400,300));
+        this.transporter.sendMessage(message);
         //
         // var spr = this.game.add.group();
         // spr.create(300, 300, 'crosshair');
@@ -402,4 +430,12 @@ function waitForSocketConnection(socket, callback){
 
 function goFullScreen() {
     game.gofullScreen();
+}
+
+function handleIncorrect(){
+    game.handleIncorrect();
+}
+
+function handleCorrect(){
+    game.handleCorrect();
 }

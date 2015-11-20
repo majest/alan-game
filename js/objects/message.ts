@@ -35,6 +35,7 @@ class Message  {
     public destination: Loc;
     public location: Loc;
     public properties: Properties;
+    public target: string = '';
 
     constructor(id: string) {
         this.id = id;
@@ -57,6 +58,10 @@ class Message  {
             message.properties = Properties.fromJson(json['properties']);
         }
 
+        if (json['target']) {
+            message.target = json['target'];
+        }
+
         return message;
     }
 
@@ -66,6 +71,11 @@ class Message  {
         this.properties = new Properties();
     }
 
+    shootAt(ship: Ship.Ship) {
+        this.action = 'shoot';
+        this.target = ship.id;
+    }
+    
     logIn(location: Loc) {
         this.action = 'login';
         this.location = location;
@@ -101,6 +111,7 @@ class Message  {
         var result = {
             "id" : this.id,
             "action" : this.action,
+            "target" : this.target
         }
 
         if (this.destination) {
@@ -118,6 +129,7 @@ class Message  {
         if (this.location) {
             result["location"] = this.location.toJson();
         }
+
 
         return result;
     }

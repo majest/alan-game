@@ -25,6 +25,7 @@ var Properties = (function () {
 })();
 var Message = (function () {
     function Message(id) {
+        this.target = '';
         this.id = id;
     }
     Message.fromJson = function (json) {
@@ -39,12 +40,19 @@ var Message = (function () {
         if (json['properties']) {
             message.properties = Properties.fromJson(json['properties']);
         }
+        if (json['target']) {
+            message.target = json['target'];
+        }
         return message;
     };
     Message.prototype.addPlayer = function (location) {
         this.action = 'create';
         this.location = location;
         this.properties = new Properties();
+    };
+    Message.prototype.shootAt = function (ship) {
+        this.action = 'shoot';
+        this.target = ship.id;
     };
     Message.prototype.logIn = function (location) {
         this.action = 'login';
@@ -70,7 +78,8 @@ var Message = (function () {
     Message.prototype.toJson = function () {
         var result = {
             "id": this.id,
-            "action": this.action
+            "action": this.action,
+            "target": this.target
         };
         if (this.destination) {
             result['destination'] = this.destination.toJson();

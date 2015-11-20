@@ -87,20 +87,24 @@ module Ship {
             // });
             // }
 
+            this.updateName();
+
             if (this.target) {
                 this.fire(this.target);
             }
             //  Run collision
             if (this.bullets) {
+
                 this.game.physics.arcade.overlap(this.bullets, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
             }
+
             this.moveToLocation();
         }
 
         bulletCollisionHandler(bullet, ship) {
 
             // ignore the colision for ourselfs
-            if (ship.id == playerId) return;
+            if (ship.id == this.id) return;
 
             bullet.kill();
         }
@@ -111,7 +115,7 @@ module Ship {
             // and ship we are shooting at is not us
             // and curretnt ime is more than a next fire - which means it's time to shoot a bullet
             // and number of dead bullets is more than
-            if (this.game.time.now < this.fireDuration && ship.id != playerId && this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
+            if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
             {
                 console.log('shoot2');
                 // correct the time so we should the next one after firerate
@@ -121,7 +125,7 @@ module Ship {
                 var bullet = this.bullets.getFirstDead();
 
                 // reset the position the bullet so it looks like it comes out from our ship
-                bullet.reset(this.x - 8, this.y - 8);
+                bullet.reset(this.x - 4, this.y - 4);
 
                 // shoot the bullets towards the target
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);// .moveToPointer(bullet, 300);
@@ -161,36 +165,8 @@ module Ship {
             }
 
             if (message.location) {
-
                console.log(playerId + ':Ship::handleMessage - handling location for ship ' + message.id);
-
-               //this.setLocation(message.location);
-                this.x = message.location.x;
-                this.y = message.location.y;
-
-                // lag correction
-                var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
-                var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
-                this.x += xfix;
-                this.y += yfix;
-
-
-                if (typeof message.location.rotation != 'undefined') {
-                   this.rotation = message.location.rotation;
-                }
-
-                if (typeof message.location.angle != 'undefined') {
-                   this.angle = message.location.angle;
-                }
-
-                if (typeof  message.location.velocityx != 'undefined') {
-                   this.body.velocity.x = message.location.velocityx;
-                }
-
-                if (typeof  message.location.velocityy != 'undefined') {
-                   this.body.velocity.y = message.location.velocityy;
-                }
-
+               this.setLocation(message.location);
             }
 
             // handle destination at all times
@@ -209,6 +185,7 @@ module Ship {
             if (!this.destination) {
                 return;
             }
+
 
 
             // calcualte distance to target
@@ -264,7 +241,7 @@ module Ship {
 
 
             this.rotationSpeed(this.move())
-            this.updateName();
+
 
 
 
@@ -296,11 +273,33 @@ module Ship {
             return loc;
         }
 
-        setLocation(loc: Loc) {
-            this.rotation = loc.rotation;
-            this.angle = loc.angle;
-            this.body.velocity.x = loc.velocityx;
-            this.body.velocity.y = loc.velocityy;
+        setLocation(location: Loc) {
+            //this.setLocation(message.location);
+             this.x = location.x;
+             this.y = location.y;
+
+             // lag correction
+             var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
+             var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
+             this.x += xfix;
+             this.y += yfix;
+
+
+             if (typeof location.rotation != 'undefined') {
+                this.rotation = location.rotation;
+             }
+
+             if (typeof location.angle != 'undefined') {
+                this.angle = location.angle;
+             }
+
+             if (typeof  location.velocityx != 'undefined') {
+                this.body.velocity.x = location.velocityx;
+             }
+
+             if (typeof  location.velocityy != 'undefined') {
+                this.body.velocity.y = location.velocityy;
+             }
         }
 
     }

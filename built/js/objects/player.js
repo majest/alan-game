@@ -42,6 +42,7 @@ var Ship;
         Ship.prototype.update = function () {
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
+            this.updateName();
             if (this.target) {
                 this.fire(this.target);
             }
@@ -51,16 +52,16 @@ var Ship;
             this.moveToLocation();
         };
         Ship.prototype.bulletCollisionHandler = function (bullet, ship) {
-            if (ship.id == playerId)
+            if (ship.id == this.id)
                 return;
             bullet.kill();
         };
         Ship.prototype.fire = function (ship) {
-            if (this.game.time.now < this.fireDuration && ship.id != playerId && this.game.time.now > this.nextFire && this.bullets.countDead() > 0) {
+            if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0) {
                 console.log('shoot2');
                 this.nextFire = this.game.time.now + this.fireRate;
                 var bullet = this.bullets.getFirstDead();
-                bullet.reset(this.x - 8, this.y - 8);
+                bullet.reset(this.x - 4, this.y - 4);
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);
             }
         };
@@ -87,24 +88,7 @@ var Ship;
             }
             if (message.location) {
                 console.log(playerId + ':Ship::handleMessage - handling location for ship ' + message.id);
-                this.x = message.location.x;
-                this.y = message.location.y;
-                var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
-                var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
-                this.x += xfix;
-                this.y += yfix;
-                if (typeof message.location.rotation != 'undefined') {
-                    this.rotation = message.location.rotation;
-                }
-                if (typeof message.location.angle != 'undefined') {
-                    this.angle = message.location.angle;
-                }
-                if (typeof message.location.velocityx != 'undefined') {
-                    this.body.velocity.x = message.location.velocityx;
-                }
-                if (typeof message.location.velocityy != 'undefined') {
-                    this.body.velocity.y = message.location.velocityy;
-                }
+                this.setLocation(message.location);
             }
             if (message.destination) {
                 console.log(playerId + ':Ship::handleMessage - handling destination');
@@ -151,7 +135,6 @@ var Ship;
                 return;
             }
             this.rotationSpeed(this.move());
-            this.updateName();
         };
         Ship.prototype.addName = function () {
             console.log('Ship::addName');
@@ -171,11 +154,25 @@ var Ship;
             console.log(loc);
             return loc;
         };
-        Ship.prototype.setLocation = function (loc) {
-            this.rotation = loc.rotation;
-            this.angle = loc.angle;
-            this.body.velocity.x = loc.velocityx;
-            this.body.velocity.y = loc.velocityy;
+        Ship.prototype.setLocation = function (location) {
+            this.x = location.x;
+            this.y = location.y;
+            var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
+            var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
+            this.x += xfix;
+            this.y += yfix;
+            if (typeof location.rotation != 'undefined') {
+                this.rotation = location.rotation;
+            }
+            if (typeof location.angle != 'undefined') {
+                this.angle = location.angle;
+            }
+            if (typeof location.velocityx != 'undefined') {
+                this.body.velocity.x = location.velocityx;
+            }
+            if (typeof location.velocityy != 'undefined') {
+                this.body.velocity.y = location.velocityy;
+            }
         };
         return Ship;
     })(Phaser.Sprite);

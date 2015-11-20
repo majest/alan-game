@@ -1,12 +1,15 @@
-var resx = 800;
-var resy = 600;
+var resx = 640;
+var resy = 640;
 var game;
+var firstRunLandscape;
 var playerId;
+var gameRatio;
 var Game = (function () {
     function Game() {
         this.ready = false;
         this.fullScreenEnabled = false;
-        this.game = new Phaser.Game(resx, resy, Phaser.WEBGL, 'phaser', {
+        gameRatio = window.innerWidth / window.innerHeight;
+        this.game = new Phaser.Game(Math.ceil(resx * gameRatio), resy, Phaser.WEBGL, 'phaser', {
             preload: this.preload,
             create: this.create,
             update: this.update,
@@ -37,8 +40,14 @@ var Game = (function () {
         this.ready = true;
     };
     Game.prototype.preload = function () {
+        firstRunLandscape = this.game.scale.isGameLandscape;
+        console.log('=========== firstRunLandscape' + firstRunLandscape + '==================');
+        this.game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         this.game.stage.disableVisibilityChange = true;
         this.game.config.forceSetTimeOut = true;
+        this.game.scale.forceOrientation(false, true);
+        this.game.scale.enterIncorrectOrientation.add(handleIncorrect);
+        this.game.scale.leaveIncorrectOrientation.add(handleCorrect);
         this.game.load.image('space1', 'assets/space1.jpg');
         this.game.load.image('space2', 'assets/space2.jpg');
         this.game.load.image('bullet', 'assets/bullets.png');
@@ -47,6 +56,21 @@ var Game = (function () {
         this.game.load.image('planet-earth', 'assets/planets/earth.png');
         this.game.load.image('planet-desert', 'assets/planets/desert.png');
         this.game.load.image('crosshair', 'assets/crosshair.png');
+    };
+    Game.prototype.handleCorrect = function () {
+        if (!this.game.device.desktop) {
+            if (firstRunLandscape) {
+                gameRatio = window.innerWidth / window.innerHeight;
+                this.game.width = Math.ceil(resx * gameRatio);
+                this.game.height = resy;
+                this.game.renderer.resize(this.game.width, this.game.height);
+                this.game.state.start("Play");
+            }
+        }
+    };
+    Game.prototype.handleIncorrect = function () {
+        if (!this.game.device.desktop) {
+        }
     };
     Game.prototype.render = function () {
         this.game.debug.cameraInfo(this.game.camera, 32, 32);
@@ -64,9 +88,9 @@ var Game = (function () {
 var Scene = (function () {
     function Scene(game) {
         this.game = game;
-        this.space1 = this.game.add.tileSprite(0, 0, resx, resy, 'space1');
+        this.space1 = this.game.add.tileSprite(0, 0, Math.ceil(resx * gameRatio), resy, 'space1');
         this.space1.fixedToCamera = true;
-        this.space2 = this.game.add.tileSprite(0, 0, resx, resy, 'space2');
+        this.space2 = this.game.add.tileSprite(0, 0, Math.ceil(resx * gameRatio), resy, 'space2');
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.4;
         this.createPlanets();
@@ -160,6 +184,9 @@ var ActionHandler = (function () {
         var message = new Message(this.playerId);
         message.logIn(new Loc(300, 300));
         this.transporter.sendMessage(message);
+        var message = new Message('DUMMY');
+        message.addPlayer(new Loc(400, 300));
+        this.transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
         console.log(playerId + ':ActionHandler::broadCast');
@@ -248,4 +275,10 @@ function waitForSocketConnection(socket, callback) {
 }
 function goFullScreen() {
     game.gofullScreen();
+}
+function handleIncorrect() {
+    game.handleIncorrect();
+}
+function handleCorrect() {
+    game.handleCorrect();
 }
