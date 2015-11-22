@@ -41,7 +41,6 @@ module Ship {
             this.bullets.setAll('checkWorldBounds', true);
             this.bullets.setAll('outOfBoundsKill', true);
 
-
             //this.ship.body.setZeroRotation();
             //this.ship.body.allowRotation = true;
             this.body.drag.set(this.properties.breakingForce);
@@ -49,7 +48,7 @@ module Ship {
             this.body.angularDrag = 50;
             this.body.id = id;
             this.id = id;
-            this.scale.setTo(0.5, 0.5);
+            this.scale.setTo(0.4, 0.4);
             this.anchor.setTo(0.5, 0.5);
             this.inputEnabled = true;
             this.addName();
@@ -94,7 +93,6 @@ module Ship {
             }
             //  Run collision
             if (this.bullets) {
-
                 this.game.physics.arcade.overlap(this.bullets, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
             }
 
@@ -153,6 +151,8 @@ module Ship {
             console.log(playerId + ':Ship::setTarget');
             this.fireDuration = this.game.time.now + 1000;
             this.target = target;
+
+
         }
 
         handleMessage(message: Message) {
@@ -176,6 +176,11 @@ module Ship {
                 this.destination = message.destination;
                 // handle location changes only if it's a ship that is not a current plater
             }
+
+            // 
+            // if (message.fire) {
+            //
+            // }
 
         }
 

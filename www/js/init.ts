@@ -3,19 +3,19 @@ var playerId;
 var game;
 
 window.onload = function() {
-    document.getElementById("login").addEventListener("click", function() {
-        playerId = (<HTMLInputElement>document.getElementById('playerId')).value;
-        hideshow('startScreen');
-        hideshow('phaser');
-        game = new Game();
-    });
-}
+    playerId = 'art';
+    var startScreen = document.getElementById('startScreen');
+    var phaser = document.getElementById('phaser');
+    startScreen.style.display = 'none';
+    phaser.style.display = 'block';
+    new Game();
 
-function hideshow(which){
-    var element = document.getElementById(which)
-    if (element.style.display=="block") {
-        element.style.display="none"
-    }    else {
-        element.style.display="block"
-    }
+    // document.getElementById("login").addEventListener("click", function() {
+    //     playerId = (<HTMLInputElement>document.getElementById('playerId')).value;
+    //     var startScreen = document.getElementById('startScreen');
+    //     var phaser = document.getElementById('phaser');
+    //     startScreen.style.display = 'none';
+    //     phaser.style.display = 'block';
+    //     game = new Game();
+    // });
 }

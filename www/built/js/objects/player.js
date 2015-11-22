@@ -26,7 +26,7 @@ var Ship;
             this.body.angularDrag = 50;
             this.body.id = id;
             this.id = id;
-            this.scale.setTo(0.5, 0.5);
+            this.scale.setTo(0.4, 0.4);
             this.anchor.setTo(0.5, 0.5);
             this.inputEnabled = true;
             this.addName();

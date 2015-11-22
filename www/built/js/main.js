@@ -1,117 +1,97 @@
-var resx = 1280;
-var resy = 800;
 var game;
 var firstRunLandscape;
 var playerId;
-var gameRatio;
 var Game = (function () {
     function Game() {
         this.ready = false;
-        this.fullScreenEnabled = false;
-        gameRatio = window.innerWidth / window.innerHeight;
-        this.game = new Phaser.Game(Math.ceil(resx * gameRatio), resy, Phaser.WEBGL, 'phaser', {
-            preload: this.preload,
-            create: this.create,
-            update: this.update,
-            render: this.render
-        });
+        Game.gameRatio = window.innerWidth / window.innerHeight;
+        var winWidth = window.innerWidth;
+        var winHeight = window.innerHeight;
+        console.log('==========  ratio: ' + Game.gameRatio);
+        console.log('==========  width: ' + Game.resx);
+        console.log('==========  height: ' + Game.resy);
+        console.log('==========  window width: ' + winWidth);
+        console.log('==========  window height: ' + winHeight);
+        game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.WEBGL, 'phaser');
+        game.state.add('setup', Setup);
+        game.state.start('setup');
     }
-    Game.prototype.gofullScreen = function () {
-        if (this.game.scale.isFullScreen) {
-        }
-        else {
-        }
-    };
     Game.prototype.create = function () {
-        console.log('Creating world');
-        this.game.world.setBounds(0, 0, 20000000, 20000000);
-        this.game.physics.startSystem(Phaser.Physics.ARCADE);
-        this.game.renderer.clearBeforeRender = false;
-        this.game.time.advancedTiming = true;
-        this.playerId = playerId;
-        this.scene = new Scene(this.game);
-        this.actionHandler = ActionHandler.getInstance();
-        this.actionHandler.init(this.game, this.playerId);
-        this.transporter = new MessageTransport(this.actionHandler);
-        this.actionHandler.setTransporter(this.transporter);
-        this.actionHandler.createPlayer();
-        this.game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
-        this.game.input.onDown.add(goFullScreen, this);
-        this.ready = true;
     };
     Game.prototype.preload = function () {
-        firstRunLandscape = this.game.scale.isGameLandscape;
-        console.log('=========== firstRunLandscape' + firstRunLandscape + '==================');
-        this.game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
-        this.game.stage.disableVisibilityChange = true;
-        this.game.config.forceSetTimeOut = true;
-        this.game.scale.forceOrientation(false, true);
-        this.game.scale.enterIncorrectOrientation.add(handleIncorrect);
-        this.game.scale.leaveIncorrectOrientation.add(handleCorrect);
-        this.game.load.image('space1', 'assets/space1.jpg');
-        this.game.load.image('space2', 'assets/space2.jpg');
-        this.game.load.image('bullet', 'assets/bullets.png');
-        this.game.load.image('ship', 'assets/ships/fury.png');
-        this.game.load.image('dust', 'assets/pixel.png');
-        this.game.load.image('planet-earth', 'assets/planets/earth.png');
-        this.game.load.image('planet-desert', 'assets/planets/desert.png');
-        this.game.load.image('crosshair', 'assets/crosshair.png');
     };
     Game.prototype.handleCorrect = function () {
-        if (!this.game.device.desktop) {
-            if (firstRunLandscape) {
-                gameRatio = window.innerWidth / window.innerHeight;
-                this.game.width = Math.ceil(resx * gameRatio);
-                this.game.height = Math.ceil(resy * gameRatio);
-                ;
-                this.game.renderer.resize(this.game.width, this.game.height);
-            }
-        }
     };
     Game.prototype.handleIncorrect = function () {
     };
-    Game.prototype.render = function () {
-        this.game.debug.cameraInfo(this.game.camera, 32, 32);
-        this.game.debug.text(this.game.time.fps + ' FPS', 740, 32);
-    };
-    Game.prototype.update = function () {
-        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
-            return;
-        this.actionHandler.sortedCollide(this.game, this.actionHandler.getUpdateGroups().children);
-        this.scene.update(this.actionHandler.getPlayer().getShip());
-        this.actionHandler.getUpdateGroups().update();
-    };
+    Game.resx = 800;
     return Game;
 })();
-var Scene = (function () {
-    function Scene(game) {
-        this.game = game;
-        this.space1 = this.game.add.tileSprite(0, 0, Math.ceil(resx * gameRatio), resy, 'space1');
+var Setup = (function () {
+    function Setup() {
+    }
+    Setup.prototype.render = function () {
+        game.debug.cameraInfo(game.camera, 32, 32);
+        game.debug.text(game.time.fps + ' FPS', 400, 32);
+    };
+    Setup.prototype.preload = function () {
+        game.load.image('space1', 'assets/space1.jpg');
+        game.load.image('space2', 'assets/space2.jpg');
+        game.load.image('planet-earth', 'assets/planets/earth.png');
+        game.load.image('planet-desert', 'assets/planets/desert.png');
+        game.load.image('bullet', 'assets/bullets.png');
+        game.load.image('ship', 'assets/ships/fury.png');
+        game.load.image('dust', 'assets/pixel.png');
+        game.load.image('crosshair', 'assets/crosshair.png');
+    };
+    Setup.prototype.create = function () {
+        console.log('Creating world');
+        game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+        game.physics.startSystem(Phaser.Physics.ARCADE);
+        game.world.setBounds(0, 0, 20000000, 20000000);
+        game.time.advancedTiming = true;
+        this.background = new Background();
+        this.actionHandler = ActionHandler.getInstance();
+        this.actionHandler.init();
+        this.transporter = new MessageTransport(this.actionHandler);
+        this.actionHandler.setTransporter(this.transporter);
+        this.actionHandler.createPlayer();
+        this.ready = true;
+    };
+    Setup.prototype.update = function () {
+        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
+            return;
+        this.actionHandler.sortedCollide(game, this.actionHandler.getUpdateGroups().children);
+        this.actionHandler.getUpdateGroups().update();
+        this.background.update(this.actionHandler.getPlayer().getShip());
+    };
+    return Setup;
+})();
+var Background = (function () {
+    function Background() {
+        this.space1 = game.add.tileSprite(0, 0, Game.resx, Math.ceil(Game.resx * Game.gameRatio), 'space1');
         this.space1.fixedToCamera = true;
-        this.space2 = this.game.add.tileSprite(0, 0, Math.ceil(resx * gameRatio), resy, 'space2');
+        this.space2 = game.add.tileSprite(0, 0, Game.resx, Math.ceil(Game.resx * Game.gameRatio), 'space2');
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.4;
-        this.createPlanets();
-    }
-    Scene.prototype.createPlanets = function () {
-        var planet = this.game.add.sprite(500, 400, "planet-earth");
+        var planet = game.add.sprite(500, 400, "planet-earth");
         planet.scale.set(0.4);
         planet.anchor.setTo(0.5, 0.5);
-        var planet = this.game.add.sprite(1500, 600, "planet-desert");
+        var planet = game.add.sprite(1500, 600, "planet-desert");
         planet.scale.set(0.3);
         planet.anchor.setTo(0.5, 0.5);
-    };
-    Scene.prototype.update = function (object) {
-        if (!this.game.camera.atLimit.x) {
-            this.space1.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed * 0.4;
-            this.space2.tilePosition.x -= (object.body.velocity.x) * this.game.time.physicsElapsed;
+    }
+    Background.prototype.update = function (player) {
+        if (!game.camera.atLimit.x) {
+            this.space1.tilePosition.x -= (player.body.velocity.x) * game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.x -= (player.body.velocity.x) * game.time.physicsElapsed;
         }
-        if (!this.game.camera.atLimit.y) {
-            this.space1.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed * 0.4;
-            this.space2.tilePosition.y -= (object.body.velocity.y) * this.game.time.physicsElapsed;
+        if (!game.camera.atLimit.y) {
+            this.space1.tilePosition.y -= (player.body.velocity.y) * game.time.physicsElapsed * 0.4;
+            this.space2.tilePosition.y -= (player.body.velocity.y) * game.time.physicsElapsed;
         }
     };
-    return Scene;
+    return Background;
 })();
 var Connection = (function () {
     function Connection(transporter) {
@@ -154,7 +134,6 @@ var MessageTransport = (function () {
     };
     MessageTransport.prototype.sendMessage = function (message) {
         console.log(playerId + ':MessageTransport::sendMessage');
-        console.log(message);
         var messageData = JSON.stringify(message.toJson());
         this.connection.sendMessage(messageData);
     };
@@ -171,15 +150,13 @@ var ActionHandler = (function () {
     ActionHandler.getInstance = function () {
         return ActionHandler._instance;
     };
-    ActionHandler.prototype.init = function (game, playerId) {
+    ActionHandler.prototype.init = function () {
         console.log(playerId + ':ActionHandler::init');
-        this.game = game;
-        this.playerId = playerId;
-        this.ships = new Group.Ship(this.game);
+        this.ships = new Group.Ship(game);
     };
     ActionHandler.prototype.createPlayer = function () {
-        this.player = new Player(this.game, this.transporter);
-        var message = new Message(this.playerId);
+        this.player = new Player(game, this.transporter);
+        var message = new Message(playerId);
         message.logIn(new Loc(300, 300));
         this.transporter.sendMessage(message);
         var message = new Message('DUMMY');
@@ -188,7 +165,7 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.broadCast = function () {
         console.log(playerId + ':ActionHandler::broadCast');
-        var message = new Message(this.playerId);
+        var message = new Message(playerId);
         message.addPlayer(this.player.getShip().getLocation());
         this.transporter.sendMessage(message);
     };
@@ -207,11 +184,10 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.handleMessage = function (message) {
         console.log('ActionHandler::handleMessage - ' + message.action);
-        console.log(message);
         if (message.action == 'login') {
             console.log(playerId + ':ActionHandler::handleMessage - ' + message.id + ' just logged in');
-            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
-            this.game.add.existing(ship);
+            var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
+            game.add.existing(ship);
             this.ships.add(ship);
             if (message.id == playerId) {
                 console.log(playerId + ':ActionHandler::handleMessage - oh it\'s us. take the ship');
@@ -224,8 +200,8 @@ var ActionHandler = (function () {
         }
         else if (message.action == 'create' && message.id != playerId) {
             console.log(playerId + ':ActionHandler::handleMessage - received broadcast for: ' + message.id);
-            var ship = new Ship.Ship(this.game, message.location.x, message.location.y, message.id);
-            this.game.add.existing(ship);
+            var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
+            game.add.existing(ship);
             this.ships.add(ship);
         }
         this.ships.forEach(function (ship) {
@@ -250,7 +226,7 @@ var ActionHandler = (function () {
                 if ($this.rightOfBody(elem_i.body) < $this.leftOfBody(elem_j.body)) {
                     break;
                 }
-                $this.game.physics.arcade.collide(elem_i, elem_j);
+                game.physics.arcade.collide(elem_i, elem_j);
             }
         }
     };
