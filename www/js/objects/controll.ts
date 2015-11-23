@@ -126,19 +126,17 @@ class Player   {
     ship;
     scene;
 
-    constructor(private game, private transporter: MessageTransport) {
-        this.game = game;
-        this.transporter = transporter;
+    constructor() {
     }
 
     takeControllOver(ship: Ship.Ship) {
         console.log('Player::takecontrollOver - taking ship id:' + ship.id);
         this.ship = ship;
         // handle click&move
-        this.game.input.onDown.add(this.moveToPointer, this);
+        game.input.onDown.add(this.moveToPointer, this);
 
         // follow this player
-        this.game.camera.follow(this.ship);
+        game.camera.follow(this.ship);
     }
 
     moveToPointer(pointer) {
@@ -148,7 +146,7 @@ class Player   {
         var message = new Message(this.ship.id);
         message.setDestination(new Loc(pointer.worldX, pointer.worldY));
         message.setLocation(this.ship.getLocation());
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
     }
 
     getShip() {

@@ -7,7 +7,7 @@
 var game;
 var firstRunLandscape;
 var playerId;
-
+var transporter;
 
 class Game {
 
@@ -131,7 +131,6 @@ class Setup {
 
     actionHandler;
     ready;
-    transporter;
     background;
 
     render() {
@@ -174,8 +173,7 @@ class Setup {
         this.actionHandler = ActionHandler.getInstance();
         this.actionHandler.init();
 
-        this.transporter = new MessageTransport(this.actionHandler);
-        this.actionHandler.setTransporter(this.transporter);
+        transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
     }
@@ -316,19 +314,19 @@ class ActionHandler {
 
     init() {
         console.log(playerId + ':ActionHandler::init');
-        this.ships = new Group.Ship(game);
+        this.ships = new Group.Ship();
     }
 
     createPlayer() {
-        this.player = new Player(game, this.transporter);
+        this.player = new Player();
 
         var message = new Message(playerId);
         message.logIn(new Loc(300,300));
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
 
         var message = new Message('DUMMY');
         message.addPlayer(new Loc(400,300));
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
         //
         // var spr = game.add.group();
         // spr.create(300, 300, 'crosshair');
@@ -338,7 +336,7 @@ class ActionHandler {
         console.log(playerId + ':ActionHandler::broadCast');
         var message = new Message(playerId);
         message.addPlayer(this.player.getShip().getLocation());
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
     }
 
     getPlayer() {
@@ -348,13 +346,7 @@ class ActionHandler {
     getShips() {
         return this.ships;
     }
-    /**
-    * Set the message transporter
-    */
-    setTransporter(transporter: MessageTransport) {
-        console.log(playerId + ':ActionHandler::setTransporter');
-        this.transporter = transporter;
-    }
+
 
     getUpdateGroups() {
         return this.ships;

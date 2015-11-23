@@ -1,6 +1,7 @@
 var game;
 var firstRunLandscape;
 var playerId;
+var transporter;
 var Game = (function () {
     function Game() {
         this.ready = false;
@@ -53,8 +54,7 @@ var Setup = (function () {
         this.background = new Background();
         this.actionHandler = ActionHandler.getInstance();
         this.actionHandler.init();
-        this.transporter = new MessageTransport(this.actionHandler);
-        this.actionHandler.setTransporter(this.transporter);
+        transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
     };
@@ -152,32 +152,28 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.init = function () {
         console.log(playerId + ':ActionHandler::init');
-        this.ships = new Group.Ship(game);
+        this.ships = new Group.Ship();
     };
     ActionHandler.prototype.createPlayer = function () {
-        this.player = new Player(game, this.transporter);
+        this.player = new Player();
         var message = new Message(playerId);
         message.logIn(new Loc(300, 300));
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
         var message = new Message('DUMMY');
         message.addPlayer(new Loc(400, 300));
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
         console.log(playerId + ':ActionHandler::broadCast');
         var message = new Message(playerId);
         message.addPlayer(this.player.getShip().getLocation());
-        this.transporter.sendMessage(message);
+        transporter.sendMessage(message);
     };
     ActionHandler.prototype.getPlayer = function () {
         return this.player;
     };
     ActionHandler.prototype.getShips = function () {
         return this.ships;
-    };
-    ActionHandler.prototype.setTransporter = function (transporter) {
-        console.log(playerId + ':ActionHandler::setTransporter');
-        this.transporter = transporter;
     };
     ActionHandler.prototype.getUpdateGroups = function () {
         return this.ships;

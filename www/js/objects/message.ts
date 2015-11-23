@@ -5,7 +5,7 @@
 class Properties {
     // how fast ship is turning
     turnRate: number = 3;
-    speed: number = 80;
+    speed: number = 60;
     breakingForce: number = 80;
     object: string = 'ship';
 

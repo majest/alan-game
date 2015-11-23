@@ -52,6 +52,8 @@ module Ship {
             this.anchor.setTo(0.5, 0.5);
             this.inputEnabled = true;
             this.addName();
+
+
             this.events.onInputDown.add(this.acquireTarget, this);
 
             this.actionHandler = ActionHandler.getInstance();
@@ -137,12 +139,18 @@ module Ship {
             if (ship.id !=  playerId) {
 
                 var player = this.actionHandler.getPlayer().getShip();
-                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ' as a target of ship: ' + player.id);
+                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ',' +  ship.id + ' as a target of ship: ' + player.id);
                 // set this ship which is targetted on the ship which is targetting - current player
-                player.setTarget(this);
+            //    player.setTarget(this);
+
+                var message = new Message(player.id);
+                message.target = this.id;
+                message.action = 'target';
+                transporter.sendMessage(message);
 
                 // make the crosshair visible
                 this.crosshair.visible = true;
+
                 return this.crosshair;
             }
         }
@@ -151,8 +159,6 @@ module Ship {
             console.log(playerId + ':Ship::setTarget');
             this.fireDuration = this.game.time.now + 1000;
             this.target = target;
-
-
         }
 
         handleMessage(message: Message) {
@@ -177,10 +183,13 @@ module Ship {
                 // handle location changes only if it's a ship that is not a current plater
             }
 
-            // 
-            // if (message.fire) {
             //
-            // }
+            if (message.action == 'target') {
+                console.log('TARGET!!!!!!!!!!!!! ' + message.target);
+                console.log(this.actionHandler.getUpdateGroups().getById(message.target));
+
+                this.setTarget(this.actionHandler.getUpdateGroups().getById(message.target));
+            }
 
         }
 
@@ -315,7 +324,7 @@ module Group {
 
             //ships: Ship.Ship[] = [];
 
-            constructor(game) {
+            constructor() {
                 super(game);
             }
 
@@ -324,6 +333,23 @@ module Group {
             add(sprite: Ship.Ship) {
                 super.add(sprite);
                 //this.ships.push(sprite);
+            }
+
+            getById(id: string) {
+
+                var displayObject : Ship.Ship
+                for (var key in this.children) {
+
+                    displayObject = <Ship.Ship>this.children[key];
+
+                    if (displayObject.id == id) {
+                        console.log(displayObject);
+                        return displayObject;
+
+                    }
+                }
+
+                return null;
             }
             // getById(id: string) : Ship.Ship  {
             //     super.forEach(function(ship: Ship.Ship) {

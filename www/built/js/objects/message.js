@@ -1,7 +1,7 @@
 var Properties = (function () {
     function Properties() {
         this.turnRate = 3;
-        this.speed = 80;
+        this.speed = 60;
         this.breakingForce = 80;
         this.object = 'ship';
     }

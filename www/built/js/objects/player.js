@@ -69,8 +69,11 @@ var Ship;
             console.log(playerId + ':Ship::acquireTarget');
             if (ship.id != playerId) {
                 var player = this.actionHandler.getPlayer().getShip();
-                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ' as a target of ship: ' + player.id);
-                player.setTarget(this);
+                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ',' + ship.id + ' as a target of ship: ' + player.id);
+                var message = new Message(player.id);
+                message.target = this.id;
+                message.action = 'target';
+                transporter.sendMessage(message);
                 this.crosshair.visible = true;
                 return this.crosshair;
             }
@@ -94,6 +97,11 @@ var Ship;
                 console.log(playerId + ':Ship::handleMessage - handling destination');
                 console.log(message.destination);
                 this.destination = message.destination;
+            }
+            if (message.action == 'target') {
+                console.log('TARGET!!!!!!!!!!!!! ' + message.target);
+                console.log(this.actionHandler.getUpdateGroups().getById(message.target));
+                this.setTarget(this.actionHandler.getUpdateGroups().getById(message.target));
             }
         };
         Ship.prototype.move = function () {
@@ -182,11 +190,22 @@ var Group;
 (function (Group) {
     var Ship = (function (_super) {
         __extends(Ship, _super);
-        function Ship(game) {
+        function Ship() {
             _super.call(this, game);
         }
         Ship.prototype.add = function (sprite) {
             _super.prototype.add.call(this, sprite);
+        };
+        Ship.prototype.getById = function (id) {
+            var displayObject;
+            for (var key in this.children) {
+                displayObject = this.children[key];
+                if (displayObject.id == id) {
+                    console.log(displayObject);
+                    return displayObject;
+                }
+            }
+            return null;
         };
         return Ship;
     })(Phaser.Group);
