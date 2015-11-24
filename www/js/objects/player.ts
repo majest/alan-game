@@ -7,29 +7,41 @@ module Ship {
 
     export class Ship extends Phaser.Sprite {
 
+        // ship properties
         properties: Properties;
-        destination: Loc;
-        public id: string;
-        name: any; // players name on the screen
-        sprites; //Phaser.Sprite[] = [];
 
+        // current destination
+        destination: Loc;
+
+        // ship id
+        public id: string;
+
+        // players name on the screen
+        name: any;
+
+        // crosshair sprite
         crosshair;
 
+        // shooting details
         fireRate = 100;
         nextFire = 0;
         fireDuration = 0;
+
+
+        // bullets
         bullets;
+
+        // action handler to access other ships
         actionHandler;
 
         // sets the targeted ship
         target;
+
+        firing = false;
+
+
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
-            console.log('Ship::constructor - x,y' + x + ',' + y);
-
-
-            this.properties = new Properties();
-            //game.add.existing(this);
 
             game.physics.enable(this, Phaser.Physics.ARCADE);
 
@@ -41,11 +53,12 @@ module Ship {
             this.bullets.setAll('checkWorldBounds', true);
             this.bullets.setAll('outOfBoundsKill', true);
 
-            //this.ship.body.setZeroRotation();
-            //this.ship.body.allowRotation = true;
-            this.body.drag.set(this.properties.breakingForce);
-            this.body.maxVelocity.set(this.properties.speed);
-            this.body.angularDrag = 50;
+            this.body.bounce.x = 0.5;
+            this.body.bounce.y = 0.5;
+
+            this.body.drag.set(1);
+            this.body.maxVelocity.set(1);
+
             this.body.id = id;
             this.id = id;
             this.scale.setTo(0.4, 0.4);
@@ -53,45 +66,27 @@ module Ship {
             this.inputEnabled = true;
             this.addName();
 
-
             this.events.onInputDown.add(this.acquireTarget, this);
 
             this.actionHandler = ActionHandler.getInstance();
-              // .existing(crosshair);
-            //this.crosshair = Phaser.Sprite.call(this,game,x,y,'crosshair');
-            this.sprites = this.game.add.group();
             this.crosshair = this.game.add.sprite(x,y,'crosshair');
-            this.crosshair.anchor.setTo(0.5,0.5);
-            this.crosshair.visible = false;
-            this.sprites.add(this.crosshair);
-            //this.game.input.onDown.add(this.acquireTarget, this);
-            //this.crosshair.visible = true;
-            // this.sprites.forEach(function(sprite){
-            //     // Here you can apply the same properties to every cup.
-            // //    sprite.anchor.setTo(0.5,0.5);
-            //     sprite.visible = false;
-            // });
+            this.crosshair.anchor.setTo(0.5,0.65);
+            this.crosshair.alpha = 0.5
 
-            console.log('--------------------');
-            // console.log(crosshair);
-            // this.sprites.push(crosshair);
+            console.log(this.id + ':Ship::constructor - x,y' + x + ',' + y);
         }
+
 
         update() {
 
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
-            // if (this.id != playerId) {
-            // this.sprites.forEach(function(cup){
-            //     cup.x= this.x
-            //     cup.y= this.y
-            // });
-            // }
+            this.crosshair.rotation = this.crosshair.rotation + 0.01;
 
             this.updateName();
 
-            if (this.target) {
-                this.fire(this.target);
+            if (this.firing) {
+                this.firingAnim(this.target);
             }
             //  Run collision
             if (this.bullets) {
@@ -106,18 +101,21 @@ module Ship {
             // ignore the colision for ourselfs
             if (ship.id == this.id) return;
 
+            console.log(ship.id);
             bullet.kill();
         }
 
         // fires a bullet
-        fire(ship) {
+        firingAnim(ship) {
+
+
             // if current time is less than a time + fire duration  - this makes sure we fire only one serie
             // and ship we are shooting at is not us
             // and curretnt ime is more than a next fire - which means it's time to shoot a bullet
             // and number of dead bullets is more than
             if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
             {
-                console.log('shoot2');
+                console.log(this.id + ':Ship::shooting ' + ship.id);
                 // correct the time so we should the next one after firerate
                 this.nextFire = this.game.time.now + this.fireRate;
 
@@ -131,53 +129,89 @@ module Ship {
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);// .moveToPointer(bullet, 300);
             }
 
+            if (this.game.time.now > this.fireDuration) {
+                // setting back
+                this.firing = false;
+                // console.log(this.id + ':Ship - setting destination true');
+            }
         }
 
         // acquire target - makes the crosshair visible on the ship we have clicked on
         acquireTarget(ship, pointer) {
-            console.log(playerId + ':Ship::acquireTarget');
+            console.log(this.id + ':Ship::makeSelfATarget');
+
             if (ship.id !=  playerId) {
 
-                var player = this.actionHandler.getPlayer().getShip();
-                console.log(playerId + ':Ship::acquireTarget  - setting this ship: ' + this.id + ',' +  ship.id + ' as a target of ship: ' + player.id);
                 // set this ship which is targetted on the ship which is targetting - current player
-            //    player.setTarget(this);
+                player.ship.sendTarget(this.id)
 
-                var message = new Message(player.id);
-                message.target = this.id;
-                message.action = 'target';
-                transporter.sendMessage(message);
-
-                // make the crosshair visible
+                // make the crosshair visible on self
                 this.crosshair.visible = true;
-
-                return this.crosshair;
             }
         }
 
+        sendLocation(pointer: any) {
+            console.log(this.id + ':Player::moveToPointer');
+
+            var loc = new Loc();
+            loc.set(pointer.worldX, pointer.worldY);
+
+            var message = new Message();
+            message.setId(this.id);
+            message.setDestination(loc);
+            message.setLocation(this.getLocation());
+            transporter.sendMessage(message);
+        }
+
+        // sends the message to shoot specific ship
+        sendTarget(id: string) {
+            console.log(this.id + ':Ship::sendTarget  - sending target message to: ' + this.id);
+            var message = new Message();
+            message.setId(this.id);
+            message.target = id;
+            message.action = 'target';
+            transporter.sendMessage(message);
+        }
+
         setTarget(target : Ship.Ship) {
-            console.log(playerId + ':Ship::setTarget');
-            this.fireDuration = this.game.time.now + 1000;
+            console.log(this.id + ':Ship::setTarget');
+
+            // FIRE!!!
+
+
+            // SET THE TARGET
             this.target = target;
+        }
+
+        fire() {
+
+            if (this.target) {
+                console.log(this.id + ':Ship::fire');
+                this.fireDuration = this.game.time.now + 1000;
+                this.firing = true;
+            } else {
+                console.log(this.id + ':Ship:fire  - NO TARGET SET');
+            }
         }
 
         handleMessage(message: Message) {
 
-            console.log(playerId + ':Ship::handleMessage - action:' + message.action );
+
             // accept messages which are designated only for this ship
             if (message.id != this.id) {
-                console.log(playerId + ':Ship::handleMessage I\'m ' + this.id + ' and this message is for: ' + message.id);
+                //console.log(this.id + ':Ship::handleMessage I\'m ' + this.id + ' and this message is for: ' + message.id);
                 return;
             }
 
+            console.log(this.id + ':Ship::handleMessage - action:' + message.action);
             if (message.location) {
-               console.log(playerId + ':Ship::handleMessage - handling location for ship ' + message.id);
+               console.log(this.id + ':Ship::handleMessage - handling location for ship ' + message.id);
                this.setLocation(message.location);
             }
 
             // handle destination at all times
             if (message.destination) {
-                console.log(playerId + ':Ship::handleMessage - handling destination');
+                console.log(this.id + ':Ship::handleMessage - handling destination');
                 console.log(message.destination);
                 this.destination = message.destination;
                 // handle location changes only if it's a ship that is not a current plater
@@ -185,22 +219,20 @@ module Ship {
 
             //
             if (message.action == 'target') {
-                console.log('TARGET!!!!!!!!!!!!! ' + message.target);
-                console.log(this.actionHandler.getUpdateGroups().getById(message.target));
-
+                console.log(this.id + ':Ship::handleMessage - TARGET: ' + message.target);
                 this.setTarget(this.actionHandler.getUpdateGroups().getById(message.target));
+            }
+
+            // set the ship properties if they have been passed
+            if (message.properties) {
+                console.log(message);
+                this.setProperties(message.properties);
             }
 
         }
 
 
         move() {
-
-            if (!this.destination) {
-                return;
-            }
-
-
 
             // calcualte distance to target
             var distanceToTarget: number = parseFloat(this.game.physics.arcade.distanceToXY(this, this.destination.x, this.destination.y).toFixed(2));
@@ -247,25 +279,22 @@ module Ship {
 
 
         moveToLocation() {
-
             if (!this.destination) {
                 return;
             }
 
-
-
             this.rotationSpeed(this.move())
-
-
-
-
-            // this.sprites.x = this.x;
-            // this.sprites.y = this.y;
         }
 
+        setProperties(properties: Properties) {
+            console.log(this.id + 'Ship::setProperties');
+            this.properties = properties;
+            this.body.drag.set(this.properties.breakingForce);
+            this.body.maxVelocity.set(this.properties.speed);
+        }
 
         addName() {
-            console.log('Ship::addName');
+            //console.log(this.id + ':Ship::addName');
             var style = { font: "11px Arial", fill: "#ffffff", wordWrap: true, wordWrapWidth: this.width, align: "center" };
             this.name = this.game.add.text(this.x, this.y, this.id, style);
             this.updateName();
@@ -276,14 +305,10 @@ module Ship {
             this.name.y = Math.floor(this.y + this.height / 2) - this.height - 10;
         }
 
-        updateSprites() {
-
-        }
-
         getLocation() : Loc {
-            var loc =  new Loc(this.x, this.y);
+            var loc =  new Loc();
+            loc.set(this.x, this.y);
             loc.setState(this.rotation, this.angle, this.body.velocity.x, this.body.velocity.y);
-            console.log(loc);
             return loc;
         }
 
@@ -351,14 +376,5 @@ module Group {
 
                 return null;
             }
-            // getById(id: string) : Ship.Ship  {
-            //     super.forEach(function(ship: Ship.Ship) {
-            //         if (ship.id == id) {
-            //             return ship;
-            //         }
-            //         return null;
-            //     }, this);
-            // }
-
         }
 }

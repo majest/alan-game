@@ -2,73 +2,105 @@
 * Message container
 * has action which defines the type of the message
 */
-class Properties {
-    // how fast ship is turning
-    turnRate: number = 3;
-    speed: number = 60;
-    breakingForce: number = 80;
-    object: string = 'ship';
 
-    toJson() {
-        return {
-            "turnRate" : this.turnRate,
-            "speed": this.speed,
-            "breakingForce": this.breakingForce,
-            "object": this.object
+
+class Serializer  {
+
+    serialize() {
+        var res = {};
+        res['@object'] = this.getClassName();
+        for (var k in this) {
+            var type = typeof this[k];
+            if (type == 'string' || type == 'number') {
+                res[k] = this[k];
+            } else if (type == 'object')  {
+                res[k] = this[k].serialize();
+            }
         }
+
+        return res;
     }
 
-    public static fromJson(json: any) : Properties{
-        var properties = new Properties();
-        properties.turnRate = json['turnRate'];
-        properties.speed = json['speed'];
-        properties.breakingForce = json['breakingForce'];
-        properties.object = json['object'];
-        return properties;
+    public getClassName() {
+        var funcNameRegex = /function (.{1,})\(/;
+        var results  = (funcNameRegex).exec(this["constructor"].toString());
+        return (results && results.length > 1) ? results[1] : "";
+    }
+
+    public static load(json) {
+        //var input = JSON.parse(json);
+
+        var object = Serializer.getObjectByName(json['@object']);
+
+        for (var k in json) {
+            var type = typeof json[k];
+                if  (type == 'string' || type == 'number') {
+                    object[k] = json[k];
+                } else if (type == 'object') {
+                    object[k] = this.load(json[k]);
+                }
+        }
+        return object;
+    }
+
+    public static getObjectByName(name) : any {
+        if (name == 'Properties') { return new Properties();}
+        else if (name == 'Message') { return new Message();}
+        else if (name == 'ShipSetup') { return new Ship();}
+        else if (name == 'Item') {return new Item();}
+        else if (name == 'Loc') {return new Loc();}
+        else if (name == 'Movement') {return new Movement();}
+        return null
     }
 }
 
-class Message  {
+class Properties extends Serializer {
+    // how fast ship is turning
+    turnRate: number;
+    speed: number;
+    breakingForce: number;
+    object: string;
+}
+
+class Ship {
+
+    public health: number;
+    public shield: number;
+    public slot1: Item;
+}
+
+class Item {
+
+    public name: string;
+    public type: string;
+}
+
+
+class Weapon extends Item {
+
+    public damageShield: number;
+    public damageHull: number;
+    public object: string;
+}
+
+class Message  extends Serializer {
 
     public id: string;
     public action: string;
     public destination: Loc;
     public location: Loc;
     public properties: Properties;
-    public target: string = '';
+    public shipSetup: ShipSetup;
+    public target: string;
 
-    constructor(id: string) {
+    public setId(id) {
         this.id = id;
     }
 
-    public static fromJson(json: any) : Message{
-
-        var message = new Message(json.id);
-        message.action = json.action;
-
-        if (json['destination']) {
-            message.destination = Loc.fromJson(json['destination']);
-        }
-
-        if (json['location']) {
-            message.location = Loc.fromJson(json['location']);
-        }
-
-        if (json['properties']) {
-            message.properties = Properties.fromJson(json['properties']);
-        }
-
-        if (json['target']) {
-            message.target = json['target'];
-        }
-
-        return message;
-    }
-
-    addPlayer(location: Loc) {
+    addPlayer(location: Loc, properties: Properties) {
         this.action = 'create';
         this.location = location;
-        this.properties = new Properties();
+        this.properties = properties;
     }
 
     shootAt(ship: Ship.Ship) {
@@ -76,22 +108,20 @@ class Message  {
         this.target = ship.id;
     }
 
-    logIn(location: Loc) {
+    logIn(location: Loc, properties: Properties) {
         this.action = 'login';
         this.location = location;
-        this.properties = new Properties();
+        this.properties = properties;
     }
 
     setDestination(destination: Loc) {
         this.action = 'destination';
         this.destination = destination;
-        this.properties = new Properties();
     }
 
     setLocation(location: Loc) {
         this.action = 'location';
         this.location = location;
-        this.properties = new Properties();
     }
 
     // setMovement(movement: Movement) {
@@ -106,39 +136,12 @@ class Message  {
         }
         return false;
     }
-
-    toJson() {
-        var result = {
-            "id" : this.id,
-            "action" : this.action,
-            "target" : this.target
-        }
-
-        if (this.destination) {
-            result['destination'] = this.destination.toJson();
-        }
-
-        // if (this.movement) {
-        //     result['movement'] = this.movement.toJson();
-        // }
-
-        if (this.properties) {
-            result["properties"] = this.properties.toJson();
-        }
-
-        if (this.location) {
-            result["location"] = this.location.toJson();
-        }
-
-
-        return result;
-    }
 }
 
 /**
 * Generic location class containg coordinates
 */
-class Loc  {
+class Loc  extends Serializer {
 
     public x: number;
     public y: number;
@@ -147,7 +150,7 @@ class Loc  {
     public velocityx: number;
     public velocityy: number;
 
-    constructor(x,y) {
+    set(x,y) {
         this.x = x;
         this.y = y;
     }
@@ -172,98 +175,17 @@ class Loc  {
         this.velocityy = velocityy;
     }
 
-    toJson() {
-        var loc = {
-            "x" : this.x,
-            "y": this.y,
-            "rotation" : this.rotation,
-            "velocityx" : this.velocityx,
-            "velocityy" : this.velocityy
-        }
-
-        if (typeof this.angle != 'undefined') {
-            loc['angle'] = this.angle;
-        }
-
-        if (typeof this.rotation != 'undefined') {
-            loc['rotation'] = this.rotation;
-        }
-
-        if (typeof this.velocityx != 'undefined') {
-            loc['velocityx'] = this.velocityx;
-        }
-
-        if (typeof this.velocityy != 'undefined') {
-            loc['velocityy'] = this.velocityy;
-        }
-
-        return loc;
-    }
-
-    public static fromJson(json: any) : Loc{
-
-        if (!json) {
-            return null
-        }
-
-        var loc = new Loc(json['x'], json['y']);
-
-        if (json['velocityy'])  {
-            loc.velocityx = json['velocityy'];
-        }
-
-        if (json['velocityx'])  {
-            loc.velocityy = json['velocityx'];
-        }
-
-        if (json['rotation'])  {
-            loc.rotation = json['rotation'];
-        }
-
-        if (json['angle'])  {
-            loc.angle = json['angle'];
-        }
-
-        return loc;
-    }
 }
 
 
 /**
  Defines whether movement occurs
 **/
-class Movement  {
+class Movement extends Serializer {
 
     public rotationFinished: boolean = false;
     public movementFinished: boolean = false;
     public moving: boolean = false;
     public rotating: boolean = false;
 
-    finishMovement() {
-        this.moving = false;
-        this.movementFinished = true;
-    }
-
-    finishRotation() {
-        this.rotating = false;
-        this.rotationFinished = true;
-    }
-
-    toJson() {
-        return {
-            "rotationFinished" : this.rotationFinished,
-            "movementFinished": this.movementFinished,
-            "moving" : this.moving,
-            "rotating" : this.rotating
-        }
-    }
-
-    public static fromJson(json: any) : Movement{
-        var movement = new Movement();
-        movement.rotating = json['rotating'];
-        movement.rotationFinished = json['rotationFinished'];
-        movement.movementFinished = json['movementFinished'];
-        movement.moving = json['moving'];
-        return movement;
-    }
 }

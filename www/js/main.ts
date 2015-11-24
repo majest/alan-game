@@ -8,6 +8,8 @@ var game;
 var firstRunLandscape;
 var playerId;
 var transporter;
+var player;
+var gameinterface;
 
 class Game {
 
@@ -28,7 +30,6 @@ class Game {
 
         console.log('==========  ratio: ' + Game.gameRatio);
         console.log('==========  width: ' + Game.resx);
-        console.log('==========  height: ' + Game.resy);
 
         console.log('==========  window width: ' + winWidth);
         console.log('==========  window height: ' + winHeight);
@@ -142,9 +143,10 @@ class Setup {
         //     //game.debug.spriteInfo(currentPLayer.ship, 32, 128);
         // }
         // addcamera info
-        game.debug.cameraInfo(game.camera, 32, 32);
+        //game.debug.cameraInfo(game.camera, 32, 32);
 
         // add fps
+
         game.debug.text(game.time.fps + ' FPS', 400, 32 );
     }
 
@@ -156,7 +158,8 @@ class Setup {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
-        game.load.image('crosshair', 'assets/crosshair.png');
+        game.load.image('crosshair', 'assets/crosshair2.png');
+        game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
     }
     create() {
 
@@ -176,6 +179,15 @@ class Setup {
         transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
+
+        var button = game.add.button(10, 20, 'button', this.fire, this, 2, 1, 0);
+        button.scale.set(0.5);
+        button.fixedToCamera = true;
+
+    }
+
+    fire() {
+        player.ship.fire();
     }
 
     //update the state
@@ -183,7 +195,7 @@ class Setup {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0) return;
         this.actionHandler.sortedCollide(game, this.actionHandler.getUpdateGroups().children);
         this.actionHandler.getUpdateGroups().update();
-        this.background.update(this.actionHandler.getPlayer().getShip());
+        this.background.update(player.getShip());
     }
 
 }
@@ -223,7 +235,6 @@ class Background {
         }
     }
 }
-
 
 class Connection {
 
@@ -266,23 +277,24 @@ class MessageTransport {
     actionHandler: ActionHandler;
 
     constructor(actionHandler: ActionHandler) {
-        console.log(playerId + ':Creating Message transport');
+        console.log('Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
 
     parse(messageData) {
-        console.log(playerId + ':MessageTransport::parse');
+        //console.log('MessageTransport::parse');
         var data = JSON.parse(messageData);
-        var message = Message.fromJson(data);
+        var message = Serializer.load(data);
 
         // do not handle current's player messages from outside
         this.actionHandler.handleMessage(message);
     }
 
     sendMessage(message: Message) {
-        console.log(playerId + ':MessageTransport::sendMessage');
-        var messageData = JSON.stringify(message.toJson());
+        console.log(message);
+        console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
+        var messageData = JSON.stringify(message.serialize());
         this.connection.sendMessage(messageData);
     }
 }
@@ -291,10 +303,10 @@ class MessageTransport {
 class ActionHandler {
 
     transporter: MessageTransport;
-    player: Player;
     ships;
     playerId;
     game;
+    properties;
 
     private static _instance:ActionHandler = new ActionHandler();
 
@@ -313,19 +325,36 @@ class ActionHandler {
     }
 
     init() {
-        console.log(playerId + ':ActionHandler::init');
+        console.log('ActionHandler::init');
         this.ships = new Group.Ship();
+
+        var properties = new Properties();
+        properties.turnRate = 3;
+        properties.speed = 60;
+        properties.breakingForce = 80;
+        properties.object = 'ship';
+
+        this.properties = properties;
     }
 
     createPlayer() {
-        this.player = new Player();
+        player = new Player();
+        console.log(player);
 
-        var message = new Message(playerId);
-        message.logIn(new Loc(300,300));
+        var loc = new Loc();
+        loc.set(300,300);
+
+        var message = new Message();
+        message.setId(playerId);
+        message.logIn(loc, this.properties);
         transporter.sendMessage(message);
 
-        var message = new Message('DUMMY');
-        message.addPlayer(new Loc(400,300));
+        var loc = new Loc();
+        loc.set(400,400);
+
+        var message = new Message();
+        message.setId('DUMMY');
+        message.addPlayer(loc, this.properties);
         transporter.sendMessage(message);
         //
         // var spr = game.add.group();
@@ -333,14 +362,11 @@ class ActionHandler {
     }
 
     broadCast() {
-        console.log(playerId + ':ActionHandler::broadCast');
-        var message = new Message(playerId);
-        message.addPlayer(this.player.getShip().getLocation());
+        console.log('ActionHandler::broadCast');
+        var message = new Message();
+        message.setId(playerId);
+        message.addPlayer(player.getShip().getLocation(), this.properties);
         transporter.sendMessage(message);
-    }
-
-    getPlayer() {
-        return this.player;
     }
 
     getShips() {
@@ -358,7 +384,7 @@ class ActionHandler {
         // login detected
         if (message.action == 'login') {
 
-            console.log(playerId + ':ActionHandler::handleMessage - ' + message.id + ' just logged in')
+            console.log('ActionHandler::handleMessage - ' + message.id + ' just logged in')
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             //var ship = new Phaser.Sprite(game, 100, 100, 'ship');
             game.add.existing(ship);
@@ -366,19 +392,19 @@ class ActionHandler {
 
             // this is us, tale controll over the ship
             if (message.id == playerId) {
-                console.log(playerId + ':ActionHandler::handleMessage - oh it\'s us. take the ship');
-                this.player.takeControllOver(ship);
+                console.log('ActionHandler::handleMessage - oh it\'s us. take the ship');
+                player.takeControllOver(ship);
 
             // it's not me who logged in, I neeed to broadcast myself so they can see me
             } else {
-                console.log(playerId + ':ActionHandler::handleMessage - let it know where we are');
+                console.log('ActionHandler::handleMessage - let it know where we are');
                 this.broadCast();
             }
 
         // broadcasted position when login action was called, don't add self again
         } else if (message.action == 'create' && message.id != playerId) {
 
-            console.log(playerId + ':ActionHandler::handleMessage - received broadcast for: ' + message.id);
+            console.log('ActionHandler::handleMessage - received broadcast for: ' + message.id);
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             game.add.existing(ship);
             this.ships.add(ship);
