@@ -1,73 +1,119 @@
-var Properties = (function () {
-    function Properties() {
-        this.turnRate = 3;
-        this.speed = 60;
-        this.breakingForce = 80;
-        this.object = 'ship';
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var Serializer = (function () {
+    function Serializer() {
     }
-    Properties.prototype.toJson = function () {
-        return {
-            "turnRate": this.turnRate,
-            "speed": this.speed,
-            "breakingForce": this.breakingForce,
-            "object": this.object
-        };
+    Serializer.prototype.serialize = function () {
+        var res = {};
+        res['@object'] = this.getClassName();
+        for (var k in this) {
+            var type = typeof this[k];
+            if (type == 'string' || type == 'number') {
+                res[k] = this[k];
+            }
+            else if (type == 'object') {
+                res[k] = this[k].serialize();
+            }
+        }
+        return res;
     };
-    Properties.fromJson = function (json) {
-        var properties = new Properties();
-        properties.turnRate = json['turnRate'];
-        properties.speed = json['speed'];
-        properties.breakingForce = json['breakingForce'];
-        properties.object = json['object'];
-        return properties;
+    Serializer.prototype.getClassName = function () {
+        var funcNameRegex = /function (.{1,})\(/;
+        var results = (funcNameRegex).exec(this["constructor"].toString());
+        return (results && results.length > 1) ? results[1] : "";
     };
-    return Properties;
+    Serializer.load = function (json) {
+        var object = Serializer.getObjectByName(json['@object']);
+        for (var k in json) {
+            var type = typeof json[k];
+            if (type == 'string' || type == 'number') {
+                object[k] = json[k];
+            }
+            else if (type == 'object') {
+                object[k] = this.load(json[k]);
+            }
+        }
+        return object;
+    };
+    Serializer.getObjectByName = function (name) {
+        if (name == 'Properties') {
+            return new Properties();
+        }
+        else if (name == 'Message') {
+            return new Message();
+        }
+        else if (name == 'ShipSetup') {
+            return new Ship();
+        }
+        else if (name == 'Item') {
+            return new Item();
+        }
+        else if (name == 'Loc') {
+            return new Loc();
+        }
+        else if (name == 'Movement') {
+            return new Movement();
+        }
+        return null;
+    };
+    return Serializer;
 })();
-var Message = (function () {
-    function Message(id) {
-        this.target = '';
-        this.id = id;
+var Properties = (function (_super) {
+    __extends(Properties, _super);
+    function Properties() {
+        _super.apply(this, arguments);
     }
-    Message.fromJson = function (json) {
-        var message = new Message(json.id);
-        message.action = json.action;
-        if (json['destination']) {
-            message.destination = Loc.fromJson(json['destination']);
-        }
-        if (json['location']) {
-            message.location = Loc.fromJson(json['location']);
-        }
-        if (json['properties']) {
-            message.properties = Properties.fromJson(json['properties']);
-        }
-        if (json['target']) {
-            message.target = json['target'];
-        }
-        return message;
+    return Properties;
+})(Serializer);
+var Ship = (function () {
+    function Ship() {
+    }
+    return Ship;
+})();
+var Item = (function () {
+    function Item() {
+    }
+    return Item;
+})();
+var Weapon = (function (_super) {
+    __extends(Weapon, _super);
+    function Weapon() {
+        _super.apply(this, arguments);
+    }
+    return Weapon;
+})(Item);
+var Message = (function (_super) {
+    __extends(Message, _super);
+    function Message() {
+        _super.apply(this, arguments);
+    }
+    Message.prototype.setId = function (id) {
+        this.id = id;
     };
-    Message.prototype.addPlayer = function (location) {
+    Message.prototype.addPlayer = function (location, properties) {
         this.action = 'create';
         this.location = location;
-        this.properties = new Properties();
+        this.properties = properties;
     };
     Message.prototype.shootAt = function (ship) {
         this.action = 'shoot';
         this.target = ship.id;
     };
-    Message.prototype.logIn = function (location) {
+    Message.prototype.logIn = function (location, properties) {
         this.action = 'login';
         this.location = location;
-        this.properties = new Properties();
+        this.properties = properties;
     };
     Message.prototype.setDestination = function (destination) {
         this.action = 'destination';
         this.destination = destination;
-        this.properties = new Properties();
     };
     Message.prototype.setLocation = function (location) {
         this.action = 'location';
         this.location = location;
-        this.properties = new Properties();
     };
     Message.prototype.hasDestination = function () {
         if (typeof this.destination !== 'undefined') {
@@ -75,30 +121,17 @@ var Message = (function () {
         }
         return false;
     };
-    Message.prototype.toJson = function () {
-        var result = {
-            "id": this.id,
-            "action": this.action,
-            "target": this.target
-        };
-        if (this.destination) {
-            result['destination'] = this.destination.toJson();
-        }
-        if (this.properties) {
-            result["properties"] = this.properties.toJson();
-        }
-        if (this.location) {
-            result["location"] = this.location.toJson();
-        }
-        return result;
-    };
     return Message;
-})();
-var Loc = (function () {
-    function Loc(x, y) {
+})(Serializer);
+var Loc = (function (_super) {
+    __extends(Loc, _super);
+    function Loc() {
+        _super.apply(this, arguments);
+    }
+    Loc.prototype.set = function (x, y) {
         this.x = x;
         this.y = y;
-    }
+    };
     Loc.prototype.reset = function () {
         this.x = null;
         this.y = null;
@@ -115,79 +148,16 @@ var Loc = (function () {
         this.velocityx = velocityx;
         this.velocityy = velocityy;
     };
-    Loc.prototype.toJson = function () {
-        var loc = {
-            "x": this.x,
-            "y": this.y,
-            "rotation": this.rotation,
-            "velocityx": this.velocityx,
-            "velocityy": this.velocityy
-        };
-        if (typeof this.angle != 'undefined') {
-            loc['angle'] = this.angle;
-        }
-        if (typeof this.rotation != 'undefined') {
-            loc['rotation'] = this.rotation;
-        }
-        if (typeof this.velocityx != 'undefined') {
-            loc['velocityx'] = this.velocityx;
-        }
-        if (typeof this.velocityy != 'undefined') {
-            loc['velocityy'] = this.velocityy;
-        }
-        return loc;
-    };
-    Loc.fromJson = function (json) {
-        if (!json) {
-            return null;
-        }
-        var loc = new Loc(json['x'], json['y']);
-        if (json['velocityy']) {
-            loc.velocityx = json['velocityy'];
-        }
-        if (json['velocityx']) {
-            loc.velocityy = json['velocityx'];
-        }
-        if (json['rotation']) {
-            loc.rotation = json['rotation'];
-        }
-        if (json['angle']) {
-            loc.angle = json['angle'];
-        }
-        return loc;
-    };
     return Loc;
-})();
-var Movement = (function () {
+})(Serializer);
+var Movement = (function (_super) {
+    __extends(Movement, _super);
     function Movement() {
+        _super.apply(this, arguments);
         this.rotationFinished = false;
         this.movementFinished = false;
         this.moving = false;
         this.rotating = false;
     }
-    Movement.prototype.finishMovement = function () {
-        this.moving = false;
-        this.movementFinished = true;
-    };
-    Movement.prototype.finishRotation = function () {
-        this.rotating = false;
-        this.rotationFinished = true;
-    };
-    Movement.prototype.toJson = function () {
-        return {
-            "rotationFinished": this.rotationFinished,
-            "movementFinished": this.movementFinished,
-            "moving": this.moving,
-            "rotating": this.rotating
-        };
-    };
-    Movement.fromJson = function (json) {
-        var movement = new Movement();
-        movement.rotating = json['rotating'];
-        movement.rotationFinished = json['rotationFinished'];
-        movement.movementFinished = json['movementFinished'];
-        movement.moving = json['moving'];
-        return movement;
-    };
     return Movement;
-})();
+})(Serializer);

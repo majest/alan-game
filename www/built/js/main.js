@@ -2,6 +2,8 @@ var game;
 var firstRunLandscape;
 var playerId;
 var transporter;
+var player;
+var gameinterface;
 var Game = (function () {
     function Game() {
         this.ready = false;
@@ -10,7 +12,6 @@ var Game = (function () {
         var winHeight = window.innerHeight;
         console.log('==========  ratio: ' + Game.gameRatio);
         console.log('==========  width: ' + Game.resx);
-        console.log('==========  height: ' + Game.resy);
         console.log('==========  window width: ' + winWidth);
         console.log('==========  window height: ' + winHeight);
         game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.WEBGL, 'phaser');
@@ -32,7 +33,6 @@ var Setup = (function () {
     function Setup() {
     }
     Setup.prototype.render = function () {
-        game.debug.cameraInfo(game.camera, 32, 32);
         game.debug.text(game.time.fps + ' FPS', 400, 32);
     };
     Setup.prototype.preload = function () {
@@ -43,7 +43,8 @@ var Setup = (function () {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
-        game.load.image('crosshair', 'assets/crosshair.png');
+        game.load.image('crosshair', 'assets/crosshair2.png');
+        game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
@@ -57,13 +58,19 @@ var Setup = (function () {
         transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
+        var button = game.add.button(10, 20, 'button', this.fire, this, 2, 1, 0);
+        button.scale.set(0.5);
+        button.fixedToCamera = true;
+    };
+    Setup.prototype.fire = function () {
+        player.ship.fire();
     };
     Setup.prototype.update = function () {
         if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
             return;
         this.actionHandler.sortedCollide(game, this.actionHandler.getUpdateGroups().children);
         this.actionHandler.getUpdateGroups().update();
-        this.background.update(this.actionHandler.getPlayer().getShip());
+        this.background.update(player.getShip());
     };
     return Setup;
 })();
@@ -122,19 +129,19 @@ var Connection = (function () {
 })();
 var MessageTransport = (function () {
     function MessageTransport(actionHandler) {
-        console.log(playerId + ':Creating Message transport');
+        console.log('Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
     MessageTransport.prototype.parse = function (messageData) {
-        console.log(playerId + ':MessageTransport::parse');
         var data = JSON.parse(messageData);
-        var message = Message.fromJson(data);
+        var message = Serializer.load(data);
         this.actionHandler.handleMessage(message);
     };
     MessageTransport.prototype.sendMessage = function (message) {
-        console.log(playerId + ':MessageTransport::sendMessage');
-        var messageData = JSON.stringify(message.toJson());
+        console.log(message);
+        console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
+        var messageData = JSON.stringify(message.serialize());
         this.connection.sendMessage(messageData);
     };
     return MessageTransport;
@@ -151,26 +158,37 @@ var ActionHandler = (function () {
         return ActionHandler._instance;
     };
     ActionHandler.prototype.init = function () {
-        console.log(playerId + ':ActionHandler::init');
+        console.log('ActionHandler::init');
         this.ships = new Group.Ship();
+        var properties = new Properties();
+        properties.turnRate = 3;
+        properties.speed = 60;
+        properties.breakingForce = 80;
+        properties.object = 'ship';
+        this.properties = properties;
     };
     ActionHandler.prototype.createPlayer = function () {
-        this.player = new Player();
-        var message = new Message(playerId);
-        message.logIn(new Loc(300, 300));
+        player = new Player();
+        console.log(player);
+        var loc = new Loc();
+        loc.set(300, 300);
+        var message = new Message();
+        message.setId(playerId);
+        message.logIn(loc, this.properties);
         transporter.sendMessage(message);
-        var message = new Message('DUMMY');
-        message.addPlayer(new Loc(400, 300));
+        var loc = new Loc();
+        loc.set(400, 400);
+        var message = new Message();
+        message.setId('DUMMY');
+        message.addPlayer(loc, this.properties);
         transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
-        console.log(playerId + ':ActionHandler::broadCast');
-        var message = new Message(playerId);
-        message.addPlayer(this.player.getShip().getLocation());
+        console.log('ActionHandler::broadCast');
+        var message = new Message();
+        message.setId(playerId);
+        message.addPlayer(player.getShip().getLocation(), this.properties);
         transporter.sendMessage(message);
-    };
-    ActionHandler.prototype.getPlayer = function () {
-        return this.player;
     };
     ActionHandler.prototype.getShips = function () {
         return this.ships;
@@ -181,21 +199,21 @@ var ActionHandler = (function () {
     ActionHandler.prototype.handleMessage = function (message) {
         console.log('ActionHandler::handleMessage - ' + message.action);
         if (message.action == 'login') {
-            console.log(playerId + ':ActionHandler::handleMessage - ' + message.id + ' just logged in');
+            console.log('ActionHandler::handleMessage - ' + message.id + ' just logged in');
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             game.add.existing(ship);
             this.ships.add(ship);
             if (message.id == playerId) {
-                console.log(playerId + ':ActionHandler::handleMessage - oh it\'s us. take the ship');
-                this.player.takeControllOver(ship);
+                console.log('ActionHandler::handleMessage - oh it\'s us. take the ship');
+                player.takeControllOver(ship);
             }
             else {
-                console.log(playerId + ':ActionHandler::handleMessage - let it know where we are');
+                console.log('ActionHandler::handleMessage - let it know where we are');
                 this.broadCast();
             }
         }
         else if (message.action == 'create' && message.id != playerId) {
-            console.log(playerId + ':ActionHandler::handleMessage - received broadcast for: ' + message.id);
+            console.log('ActionHandler::handleMessage - received broadcast for: ' + message.id);
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             game.add.existing(ship);
             this.ships.add(ship);

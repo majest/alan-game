@@ -4,16 +4,13 @@ var Player = (function () {
     Player.prototype.takeControllOver = function (ship) {
         console.log('Player::takecontrollOver - taking ship id:' + ship.id);
         this.ship = ship;
-        game.input.onDown.add(this.moveToPointer, this);
+        game.input.onUp.add(this.moveToPointer, this);
         game.camera.follow(this.ship);
     };
     Player.prototype.moveToPointer = function (pointer) {
-        if (!this.ship)
+        if (!this.ship || pointer.targetObject != null)
             return;
-        var message = new Message(this.ship.id);
-        message.setDestination(new Loc(pointer.worldX, pointer.worldY));
-        message.setLocation(this.ship.getLocation());
-        transporter.sendMessage(message);
+        this.ship.sendLocation(pointer);
     };
     Player.prototype.getShip = function () {
         return this.ship;
