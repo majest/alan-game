@@ -3,6 +3,14 @@
 * has action which defines the type of the message
 */
 
+interface SlotAble {
+
+    name: string;
+    type: string;
+}
+
+
+
 
 class Serializer  {
 
@@ -46,33 +54,16 @@ class Serializer  {
     public static getObjectByName(name) : any {
         if (name == 'Properties') { return new Properties();}
         else if (name == 'Message') { return new Message();}
-        else if (name == 'ShipSetup') { return new Ship();}
-        else if (name == 'Item') {return new Item();}
+        else if (name == 'Weapon') {return new Weapon();}
         else if (name == 'Loc') {return new Loc();}
         else if (name == 'Movement') {return new Movement();}
         return null
     }
 }
 
-class Properties extends Serializer {
-    // how fast ship is turning
-    turnRate: number;
-    speed: number;
-    breakingForce: number;
-    object: string;
-}
-
-class Ship {
-
-    public health: number;
-    public shield: number;
-    public slot1: Item;
-}
-
-class Item {
-
-    public name: string;
-    public type: string;
+class Item extends Serializer implements SlotAble {
+    name: string;
+    type: string;
 }
 
 
@@ -81,7 +72,79 @@ class Weapon extends Item {
     public damageShield: number;
     public damageHull: number;
     public object: string;
+
 }
+
+
+class Properties extends Serializer {
+    // how fast ship is turning
+    public turnRate: number;
+    public speed: number;
+    public breakingForce: number;
+    public object: string;
+    public currentHull: number;
+    public currentShield: number;
+    public maxHull: number;
+    public maxShield: number;
+    public slot1: Item;
+
+    getCurrentHull() {
+        return this.currentHull;
+    }
+
+    getCurrentShield() {
+        return this.currentShield;
+    }
+
+    getMaxShield() {
+        return this.maxShield;
+    }
+
+    getHullPercentage() {
+        return (this.getCurrentHull() * 100 / this.getMaxHull());
+    }
+
+
+    getShieldPercentage() {
+        return (this.getCurrentShield() * 100) / this.getMaxShield();
+    }
+
+    getMaxHull() {
+        return this.maxHull;
+    }
+
+    setShield(shield: number) {
+        this.currentShield = shield;
+    }
+
+    setHull(hull: number) {
+        this.currentHull = hull;
+    }
+
+
+    public static factory() {
+        var properties = new Properties();
+        properties.turnRate = 3;
+        properties.speed = 60;
+        properties.breakingForce = 80;
+        properties.object = 'ship';
+        properties.currentHull = 140;
+        properties.currentShield = 250;
+        properties.maxHull = 140;
+        properties.maxShield = 250;
+
+        var weapon = new Weapon();
+        weapon.damageShield = 3;
+        weapon.damageHull = 5;
+        weapon.name = 'Projectile Turrent';
+        weapon.type = 'weapon';
+        weapon.object = 'bullets';
+
+        properties.slot1 = weapon;
+        return properties;
+    }
+}
+
 
 class Message  extends Serializer {
 
@@ -90,7 +153,6 @@ class Message  extends Serializer {
     public destination: Loc;
     public location: Loc;
     public properties: Properties;
-    public shipSetup: ShipSetup;
     public target: string;
 
     public setId(id) {

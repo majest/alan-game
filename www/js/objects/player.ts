@@ -2,6 +2,62 @@
 /// <reference path="../phaser/typescript/phaser.d.ts" />
 
 
+class HPBar {
+
+    hpbar;
+    bgbar;
+
+    name;
+
+    width = 50;
+    height = 3;
+    animDuration = 1;
+
+    hp = 100;
+
+    constructor(name, x, y, color, percentage) {
+        this.name = name;
+        this.bgbar = this.drawBar(x,y, '#ff0000');
+        this.hpbar = this.drawBar(x,y, color);
+        this.set(percentage);
+    }
+
+    drawBar(x,y,color) {
+        var hpb = game.add.bitmapData(this.width, this.height);
+        hpb.ctx.beginPath();
+        hpb.ctx.rect(0, 0, this.width, this.height);
+        hpb.ctx.fillStyle = color;
+        hpb.ctx.fill();
+
+        var hpbar = game.add.sprite(x, y, hpb);
+        //hpbar.anchor.set(0.5);
+        return hpbar;
+    }
+
+    update(x, y) {
+        this.hpbar.x = x;
+        this.hpbar.y = y
+
+        this.bgbar.x = x;
+        this.bgbar.y = y;
+    }
+
+
+    set(newValue) {
+        if(newValue < 0) newValue = 0;
+        if(newValue > 100) newValue = 100;
+
+        var newWidth =  (newValue * this.width) / 100;
+
+        this.setWidth(newWidth);
+    }
+
+    setWidth(newWidth){
+        game.add.tween(this.hpbar).to( { width: newWidth }, this.animDuration, Phaser.Easing.Linear.None, true);
+    };
+
+}
+
 
 module Ship {
 
@@ -22,6 +78,8 @@ module Ship {
         // crosshair sprite
         crosshair;
 
+        shield;
+
         // shooting details
         fireRate = 100;
         nextFire = 0;
@@ -35,10 +93,16 @@ module Ship {
         actionHandler;
 
         // sets the targeted ship
-        target;
+        target = null;
 
         firing = false;
 
+        fireButton;
+
+        shieldHpBar;
+        hullHpBar;
+
+        healthPercentage = 100;
 
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
@@ -70,24 +134,67 @@ module Ship {
 
             this.actionHandler = ActionHandler.getInstance();
             this.crosshair = this.game.add.sprite(x,y,'crosshair');
+            this.crosshair.visible = false;
             this.crosshair.anchor.setTo(0.5,0.65);
             this.crosshair.alpha = 0.5
 
+            this.shield = this.game.add.sprite(x,y,'shield');
+            this.shield.anchor.setTo(0.5,0.48);
+            this.shield.scale.setTo(0.3,0.3);
+            this.shield.visible = false;
+            //this.shield.alpha = 0.5
+
+
+            this.shieldHpBar = new HPBar('shield', this.x - this.width, this.y + this.height - 10, '#0099ff', 100);
+            this.hullHpBar = new HPBar('hull', this.x - this.width, this.y + this.height - 10, '#00ff00', 100);
+
+
+            // var hull = this.game.add.bitmapData(this.width, 3);
+            // hull.ctx.beginPath();
+            // hull.ctx.rect(0, 0, this.width, 3);
+            // hull.ctx.fillStyle = '#00ff00';
+            // hull.ctx.fill();
+            //
+            // this.hullHpBar = this.game.add.sprite(this.x + 3, this.y + this.height - 10, hull);
+            // this.hullHpBar.anchor.set(0.5);
+
+            //var healthbar = this.game.add.sprite(this.x - 15,this.y + 25,'healthbar');
+            // healthbar.cropEnabled = true;
+            // healthbar.crop.width = (character.health / character.maxHealth) * healthbar.width
+
             console.log(this.id + ':Ship::constructor - x,y' + x + ',' + y);
+
+            // game.onPause.add(this.gamePause, this);
+            // game.onResume.add(this.gameResume, this);
         }
 
+        gamePause() {
+            console.log('pause');
+        }
+
+        gameResume() {
+            console.log('resume');
+        }
 
         update() {
 
+            this.handleKeys();
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
             this.crosshair.rotation = this.crosshair.rotation + 0.01;
-
+            this.shield.x = this.x;
+            this.shield.y = this.y;
             this.updateName();
+
+
+            this.shieldHpBar.update(this.x - this.width + 10, this.y +  this.height - 10);
+            this.hullHpBar.update(this.x - this.width + 10, this.y +  this.height - 7);
+
 
             if (this.firing) {
                 this.firingAnim(this.target);
             }
+
             //  Run collision
             if (this.bullets) {
                 this.game.physics.arcade.overlap(this.bullets, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
@@ -101,8 +208,69 @@ module Ship {
             // ignore the colision for ourselfs
             if (ship.id == this.id) return;
 
-            console.log(ship.id);
+            // check if targetted ship still has shield
+            var damage = 0;
+
+            if (ship.hasShield()) {
+                damage = this.getProperties().slot1.damageShield;
+
+            // damage hull next
+            } else {
+                damage = this.getProperties().slot1.damageHull;
+            }
+
+            ship.takeHit(damage);
             bullet.kill();
+        }
+
+        takeHit(hit) {
+
+
+            // if we still have shield
+            if (this.hasShield()) {
+                // shield left
+                var shieldLeft = this.properties.getCurrentShield() - hit;
+
+                // if shield droppped to less than 0 take from hull
+                if (shieldLeft < 0) {
+
+                    // calcualte how much to take from hull
+                    hit = Math.abs(shieldLeft);
+
+                    // set shield to 0
+                    shieldLeft = 0;
+
+                // still some shield left, no damage left
+                } else {
+                    hit = 0;
+                }
+
+                this.properties.setShield(shieldLeft);
+                this.shieldHpBar.set(this.properties.getShieldPercentage());
+                console.log(this.id + ':Taking hit : shield Left:' + shieldLeft + '  shieldPercentage:' + this.properties.getShieldPercentage());
+            }
+
+            if (hit > 0 && this.hasHull()) {
+                var hullLeft = this.properties.getCurrentHull() - hit;
+                this.properties.setHull(hullLeft);
+                this.hullHpBar.set(this.properties.getHullPercentage());
+            }
+
+            if (!this.hasHull()) {
+                console.log('DIE');
+            }
+        }
+
+        hasHull() {
+            if (this.properties.getCurrentHull() > 0) {
+                return true;
+            }
+        }
+
+        hasShield() {
+            if (this.properties.getCurrentShield() > 0) {
+                return true;
+            }
         }
 
         // fires a bullet
@@ -115,7 +283,7 @@ module Ship {
             // and number of dead bullets is more than
             if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
             {
-                console.log(this.id + ':Ship::shooting ' + ship.id);
+                //console.log(this.id + ':Ship::shooting ' + ship.id);
                 // correct the time so we should the next one after firerate
                 this.nextFire = this.game.time.now + this.fireRate;
 
@@ -142,10 +310,37 @@ module Ship {
 
             if (ship.id !=  playerId) {
 
+                // remove target if is set
+                if (player.ship.hasTarget()) {
+                        player.ship.removeTarget();
+                }
+
                 // set this ship which is targetted on the ship which is targetting - current player
                 player.ship.sendTarget(this.id)
 
                 // make the crosshair visible on self
+                this.toggleCrosshair()
+            }
+        }
+
+        // has a target
+        hasTarget() {
+            if (this.target) {
+                return true;
+            }
+            return false;
+        }
+
+        // removes the current target
+        removeTarget() {
+            this.target.toggleCrosshair()
+            this.target = null;
+        }
+
+        toggleCrosshair() {
+            if (this.crosshair.visible) {
+                this.crosshair.visible = false
+            } else {
                 this.crosshair.visible = true;
             }
         }
@@ -159,7 +354,7 @@ module Ship {
             var message = new Message();
             message.setId(this.id);
             message.setDestination(loc);
-            message.setLocation(this.getLocation());
+            //message.setLocation(this.getLocation());
             transporter.sendMessage(message);
         }
 
@@ -183,12 +378,31 @@ module Ship {
             this.target = target;
         }
 
+        handleKeys() {
+            // handle key action
+            if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id){
+                this.fire();
+            }
+        }
+        /**
+        * Makes the ship fire the weapon
+        * Sets a firing flag so that the anim will know when to trigger
+        */
         fire() {
+
+            /// prevent of triggering the method multiple times
+            if (this.firing) return;
 
             if (this.target) {
                 console.log(this.id + ':Ship::fire');
                 this.fireDuration = this.game.time.now + 1000;
                 this.firing = true;
+
+                var message = new Message();
+                message.setId(this.id);
+                message.action = 'fire';
+                transporter.sendMessage(message);
+
             } else {
                 console.log(this.id + ':Ship:fire  - NO TARGET SET');
             }
@@ -223,13 +437,19 @@ module Ship {
                 this.setTarget(this.actionHandler.getUpdateGroups().getById(message.target));
             }
 
+            if (message.action == 'fire') {
+                this.fire(this.actionHandler.getUpdateGroups().getById(message.target));
+            }
+
             // set the ship properties if they have been passed
-            if (message.properties) {
+            if (message.action == 'login' || message.action == 'create') {
                 console.log(message);
+                console.log(this.id + ':Ship.handleMessage - Setting ship properties');
                 this.setProperties(message.properties);
             }
 
         }
+
 
 
         move() {
@@ -246,7 +466,6 @@ module Ship {
         }
 
         rotationSpeed(rotation) {
-
 
             if (rotation && this.rotation !== rotation) {
 
@@ -277,7 +496,9 @@ module Ship {
             this.body.velocity.y = Math.sin(this.rotation) * this.properties.speed
         }
 
-
+        /**
+        * If destination is present initiate the movement
+        */
         moveToLocation() {
             if (!this.destination) {
                 return;
@@ -293,16 +514,20 @@ module Ship {
             this.body.maxVelocity.set(this.properties.speed);
         }
 
+        getProperties() : Properties {
+            return this.properties;
+        }
+
         addName() {
             //console.log(this.id + ':Ship::addName');
-            var style = { font: "11px Arial", fill: "#ffffff", wordWrap: true, wordWrapWidth: this.width, align: "center" };
+            var style = { font: "9px Arial", fill: "#ffffff", wordWrap: true, wordWrapWidth: this.width, align: "center" };
             this.name = this.game.add.text(this.x, this.y, this.id, style);
             this.updateName();
         }
 
         updateName() {
-            this.name.x = Math.floor(this.x + this.width / 2) - this.width + 10;
-            this.name.y = Math.floor(this.y + this.height / 2) - this.height - 10;
+            this.name.x = this.x - 15; //Math.floor(this.x + this.width / 2) - this.width + 10;
+            this.name.y = this.y - 30; //Math.floor(this.y + this.height / 2) - this.height - 10;
         }
 
         getLocation() : Loc {
@@ -318,10 +543,10 @@ module Ship {
              this.y = location.y;
 
              // lag correction
-             var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
-             var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
-             this.x += xfix;
-             this.y += yfix;
+            //  var xfix = 3 * Math.cos(Phaser.Math.degToRad(this.angle));
+            //  var yfix = 3 * Math.sin(Phaser.Math.degToRad(this.angle));
+            //  this.x += xfix;
+            //  this.y += yfix;
 
 
              if (typeof location.rotation != 'undefined') {
@@ -368,9 +593,7 @@ module Group {
                     displayObject = <Ship.Ship>this.children[key];
 
                     if (displayObject.id == id) {
-                        console.log(displayObject);
                         return displayObject;
-
                     }
                 }
 

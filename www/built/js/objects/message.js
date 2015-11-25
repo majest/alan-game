@@ -45,11 +45,8 @@ var Serializer = (function () {
         else if (name == 'Message') {
             return new Message();
         }
-        else if (name == 'ShipSetup') {
-            return new Ship();
-        }
-        else if (name == 'Item') {
-            return new Item();
+        else if (name == 'Weapon') {
+            return new Weapon();
         }
         else if (name == 'Loc') {
             return new Loc();
@@ -61,23 +58,13 @@ var Serializer = (function () {
     };
     return Serializer;
 })();
-var Properties = (function (_super) {
-    __extends(Properties, _super);
-    function Properties() {
+var Item = (function (_super) {
+    __extends(Item, _super);
+    function Item() {
         _super.apply(this, arguments);
     }
-    return Properties;
-})(Serializer);
-var Ship = (function () {
-    function Ship() {
-    }
-    return Ship;
-})();
-var Item = (function () {
-    function Item() {
-    }
     return Item;
-})();
+})(Serializer);
 var Weapon = (function (_super) {
     __extends(Weapon, _super);
     function Weapon() {
@@ -85,6 +72,56 @@ var Weapon = (function (_super) {
     }
     return Weapon;
 })(Item);
+var Properties = (function (_super) {
+    __extends(Properties, _super);
+    function Properties() {
+        _super.apply(this, arguments);
+    }
+    Properties.prototype.getCurrentHull = function () {
+        return this.currentHull;
+    };
+    Properties.prototype.getCurrentShield = function () {
+        return this.currentShield;
+    };
+    Properties.prototype.getMaxShield = function () {
+        return this.maxShield;
+    };
+    Properties.prototype.getHullPercentage = function () {
+        return (this.getCurrentHull() * 100 / this.getMaxHull());
+    };
+    Properties.prototype.getShieldPercentage = function () {
+        return (this.getCurrentShield() * 100) / this.getMaxShield();
+    };
+    Properties.prototype.getMaxHull = function () {
+        return this.maxHull;
+    };
+    Properties.prototype.setShield = function (shield) {
+        this.currentShield = shield;
+    };
+    Properties.prototype.setHull = function (hull) {
+        this.currentHull = hull;
+    };
+    Properties.factory = function () {
+        var properties = new Properties();
+        properties.turnRate = 3;
+        properties.speed = 60;
+        properties.breakingForce = 80;
+        properties.object = 'ship';
+        properties.currentHull = 140;
+        properties.currentShield = 250;
+        properties.maxHull = 140;
+        properties.maxShield = 250;
+        var weapon = new Weapon();
+        weapon.damageShield = 3;
+        weapon.damageHull = 5;
+        weapon.name = 'Projectile Turrent';
+        weapon.type = 'weapon';
+        weapon.object = 'bullets';
+        properties.slot1 = weapon;
+        return properties;
+    };
+    return Properties;
+})(Serializer);
 var Message = (function (_super) {
     __extends(Message, _super);
     function Message() {

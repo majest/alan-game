@@ -158,6 +158,7 @@ class Setup {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
+        game.load.image('shield', 'assets/shield.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
         game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
     }
@@ -286,14 +287,19 @@ class MessageTransport {
         //console.log('MessageTransport::parse');
         var data = JSON.parse(messageData);
         var message = Serializer.load(data);
-
+        console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
+        console.log(message);
         // do not handle current's player messages from outside
         this.actionHandler.handleMessage(message);
     }
 
     sendMessage(message: Message) {
-        console.log(message);
+
+
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
+        console.log(message);
+
+
         var messageData = JSON.stringify(message.serialize());
         this.connection.sendMessage(messageData);
     }
@@ -327,14 +333,6 @@ class ActionHandler {
     init() {
         console.log('ActionHandler::init');
         this.ships = new Group.Ship();
-
-        var properties = new Properties();
-        properties.turnRate = 3;
-        properties.speed = 60;
-        properties.breakingForce = 80;
-        properties.object = 'ship';
-
-        this.properties = properties;
     }
 
     createPlayer() {
@@ -346,16 +344,16 @@ class ActionHandler {
 
         var message = new Message();
         message.setId(playerId);
-        message.logIn(loc, this.properties);
+        message.logIn(loc, Properties.factory());
         transporter.sendMessage(message);
 
-        var loc = new Loc();
-        loc.set(400,400);
+        // var loc = new Loc();
+        // loc.set(400,400);
 
-        var message = new Message();
-        message.setId('DUMMY');
-        message.addPlayer(loc, this.properties);
-        transporter.sendMessage(message);
+        // var message = new Message();
+        // message.setId('DUMMY');
+        // message.addPlayer(loc, Properties.factory());
+        // transporter.sendMessage(message);
         //
         // var spr = game.add.group();
         // spr.create(300, 300, 'crosshair');
@@ -365,7 +363,7 @@ class ActionHandler {
         console.log('ActionHandler::broadCast');
         var message = new Message();
         message.setId(playerId);
-        message.addPlayer(player.getShip().getLocation(), this.properties);
+        message.addPlayer(player.getShip().getLocation(), Properties.factory());
         transporter.sendMessage(message);
     }
 
