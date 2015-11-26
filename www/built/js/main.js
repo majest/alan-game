@@ -43,7 +43,7 @@ var Setup = (function () {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
-        game.load.image('shield', 'assets/shield.png');
+        game.load.image('shield', 'assets/shield-1.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
         game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
         game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
@@ -114,7 +114,7 @@ var Connection = (function () {
             this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
             this.conn.onclose = function (evt) {
                 console.log('Connection closed');
-                this.conn = null;
+                this.conn.close();
             };
             this.conn.onmessage = function (evt) {
                 transporter.parse(evt.data);
@@ -151,12 +151,10 @@ var MessageTransport = (function () {
         var data = JSON.parse(messageData);
         var message = Serializer.load(data);
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
-        console.log(message);
         this.actionHandler.handleMessage(message);
     };
     MessageTransport.prototype.sendMessage = function (message) {
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
-        console.log(message);
         var messageData = JSON.stringify(message.serialize());
         this.connection.sendMessage(messageData);
     };
@@ -190,7 +188,7 @@ var ActionHandler = (function () {
         loc.set(400, 400);
         var message = new Message();
         message.setId('DUMMY');
-        message.addPlayer(loc, Properties.factory());
+        message.addPlayer(loc, Properties.factory('ai'));
         transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
@@ -269,8 +267,6 @@ function waitForSocketConnection(socket, callback) {
         else {
             console.log("wait for connection... state:" + socket.readyState);
             timer += 5;
-            if (function (timer) { return 5000; }) {
-            }
             waitForSocketConnection(socket, callback);
         }
     }, 5);

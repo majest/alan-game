@@ -15,10 +15,14 @@ class HPBar {
 
     hp = 100;
 
+
+
     constructor(name, x, y, color, percentage) {
         this.name = name;
         this.bgbar = this.drawBar(x,y, '#ff0000');
         this.hpbar = this.drawBar(x,y, color);
+        this.hpbar.alpha = 0.6;
+        this.bgbar.alpha = 0.6;
         this.set(percentage);
     }
 
@@ -40,6 +44,8 @@ class HPBar {
 
         this.bgbar.x = x;
         this.bgbar.y = y;
+
+
     }
 
 
@@ -59,6 +65,36 @@ class HPBar {
     destroy() {
         this.hpbar.destroy();
         this.bgbar.destroy();
+    }
+}
+
+class Shield {
+
+    shieldVisibleTime
+    sprite;
+
+    constructor(x,y) {
+        var shield = game.add.sprite(x,y,'shield');
+        shield.anchor.setTo(0.5,0.48);
+        shield.scale.setTo(0.4,0.4);
+        shield.visible = false;
+        shield.tint = 0x0099ff;
+        this.sprite = shield;
+    }
+
+    update(x, y) {
+
+        this.sprite.x = x;
+        this.sprite.y = y;
+
+        if (game.time.now > this.shieldVisibleTime) {
+            this.sprite.visible = false;
+        }
+    }
+
+    show() {
+        this.shieldVisibleTime = game.time.now + 50;
+        this.sprite.visible = true;
     }
 }
 
@@ -118,7 +154,7 @@ module Ship {
             this.bullets.enableBody = true;
             this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
 
-            this.bullets.createMultiple(50, 'bullet');
+            this.bullets.createMultiple(10, 'bullet');
             this.bullets.setAll('checkWorldBounds', true);
             this.bullets.setAll('outOfBoundsKill', true);
 
@@ -143,10 +179,9 @@ module Ship {
             this.crosshair.anchor.setTo(0.5,0.65);
             this.crosshair.alpha = 0.5
 
-            this.shield = this.game.add.sprite(x,y,'shield');
-            this.shield.anchor.setTo(0.5,0.48);
-            this.shield.scale.setTo(0.3,0.3);
-            this.shield.visible = false;
+
+
+            this.shield = new Shield(this.x,this.y);
             //this.shield.alpha = 0.5
 
 
@@ -198,8 +233,7 @@ module Ship {
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
             this.crosshair.rotation = this.crosshair.rotation + 0.01;
-            this.shield.x = this.x;
-            this.shield.y = this.y;
+            this.shield.update(this.x, this.y);
             this.updateName();
 
 
@@ -207,7 +241,7 @@ module Ship {
             this.hullHpBar.update(this.x - this.width + 10, this.y +  this.height - 7);
 
 
-            if (this.firing) {
+            if (this.firing && this.target) {
                 this.firingAnim(this.target);
             }
 
@@ -243,6 +277,11 @@ module Ship {
 
             // if we still have shield
             if (this.hasShield()) {
+
+                this.shield.show();
+                this.shieldHpBar.shieldVisibleTime = this.game.time.now + 50;
+
+                this.shield.visible = true;
                 // shield left
                 var shieldLeft = this.properties.getCurrentShield() - hit;
 
@@ -271,11 +310,24 @@ module Ship {
                 this.hullHpBar.set(this.properties.getHullPercentage());
             }
 
-            if (!this.hasHull() && this.alive) {
-
-
-                this.die();
+            // if we are still alive and we don't have any hull, and this is the current player
+            // or it's ai
+            // broadcast destroy
+            if (!this.hasHull() && this.alive && (this.id == playerId || this.properties.type == 'ai')) {
+                this.sendDestroy();
             }
+        }
+
+        sendDestroy() {
+            var message = new Message();
+            message.setId(this.id);
+            message.setDestroy();
+            transporter.sendMessage(message);
+        }
+
+        updateHpBars() {
+            this.hullHpBar.set(this.properties.getHullPercentage());
+            this.shieldHpBar.set(this.properties.getShieldPercentage());
         }
 
         hasHull() {
@@ -298,14 +350,18 @@ module Ship {
             // and ship we are shooting at is not us
             // and curretnt ime is more than a next fire - which means it's time to shoot a bullet
             // and number of dead bullets is more than
+
             if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
             {
+
                 //console.log(this.id + ':Ship::shooting ' + ship.id);
                 // correct the time so we should the next one after firerate
                 this.nextFire = this.game.time.now + this.fireRate;
 
                 // get the first dead bullet
                 var bullet = this.bullets.getFirstDead();
+
+                bullet.rotation = game.physics.arcade.angleBetween(this, ship);
 
                 // reset the position the bullet so it looks like it comes out from our ship
                 bullet.reset(this.x - 4, this.y - 4);
@@ -317,7 +373,17 @@ module Ship {
             if (this.game.time.now > this.fireDuration && this.firing) {
                 // setting back
                 this.firing = false;
-                // console.log(this.id + ':Ship - setting destination true');
+
+                // make the ship we are shooting at send an update about it's health
+                ship.finishedShooting();
+                console.log(this.id + ':Ship::firingAnim - finished firing');
+            }
+        }
+
+        // only update properties if we are the owner of the ship.
+        finishedShooting() {
+            if (this.id == playerId) {
+                this.sendProperties();
             }
         }
 
@@ -333,11 +399,28 @@ module Ship {
             this.name.destroy();
             this.kill();
         }
+
+        sendProperties() {
+            var message = new Message();
+            message.setId(this.id);
+            message.setProperties(this.properties);
+            transporter.sendMessage(message);
+        }
+
         // acquire target - makes the crosshair visible on the ship we have clicked on
         acquireTarget(ship, pointer) {
-            console.log(this.id + ':Ship::makeSelfATarget');
 
-            if (ship.id !=  playerId) {
+            if (ship != null && ship.id !=  playerId) {
+
+                // don't do anything for target that is already targetted
+                // otherwise in the rare cases target might be removed before
+                // the message for targetting it again arrives
+                // and firinganim will hang the app
+                if (this.target != null && this.target.id == ship.id) {
+                    return;
+                }
+
+                console.log(this.id + ':Ship::acquireTarget');
 
                 // remove target if is set
                 if (player.ship.hasTarget()) {
@@ -477,11 +560,19 @@ module Ship {
                 this.fire();
             }
 
+            if (message.action == 'destroy') {
+                this.die();
+            }
+
             // set the ship properties if they have been passed
-            if (message.action == 'login' || message.action == 'create') {
+            // available for action login and create
+            // action properties will occur only for ships that are not the current player
+            // as the players themselfs are source of thruth
+            if (message.action == 'login' || message.action == 'create' || (message.action == 'properties' && playerId != this.id)) {
                 console.log(message);
                 console.log(this.id + ':Ship.handleMessage - Setting ship properties');
                 this.setProperties(message.properties);
+
             }
 
         }
@@ -548,6 +639,7 @@ module Ship {
             this.properties = properties;
             this.body.drag.set(this.properties.breakingForce);
             this.body.maxVelocity.set(this.properties.speed);
+            this.updateHpBars();
         }
 
         getProperties() : Properties {

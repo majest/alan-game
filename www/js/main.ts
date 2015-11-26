@@ -158,7 +158,7 @@ class Setup {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
-        game.load.image('shield', 'assets/shield.png');
+        game.load.image('shield', 'assets/shield-1.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
         game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
         game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
@@ -262,7 +262,7 @@ class Connection {
 
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');
-                this.conn = null;
+                this.conn.close()
             }
 
             this.conn.onmessage = function(evt) {
@@ -312,18 +312,12 @@ class MessageTransport {
         var data = JSON.parse(messageData);
         var message = Serializer.load(data);
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
-        console.log(message);
         // do not handle current's player messages from outside
         this.actionHandler.handleMessage(message);
     }
 
     sendMessage(message: Message) {
-
-
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
-        console.log(message);
-
-
         var messageData = JSON.stringify(message.serialize());
         this.connection.sendMessage(messageData);
     }
@@ -376,7 +370,7 @@ class ActionHandler {
 
         var message = new Message();
         message.setId('DUMMY');
-        message.addPlayer(loc, Properties.factory());
+        message.addPlayer(loc, Properties.factory('ai'));
         transporter.sendMessage(message);
         //
         // var spr = game.add.group();
@@ -484,12 +478,13 @@ function waitForSocketConnection(socket, callback){
                 console.log("wait for connection... state:" + socket.readyState);
                 timer+=5;
 
-                if (timer => 5000) {
+            //    if (timer => 5000) {
 
                     // reset the connection
-                //    alert('Connection Lost. Please restart the game');
-                }
-                waitForSocketConnection(socket, callback);
+                //    transporter.resetConnection();
+            //    } else {
+                    waitForSocketConnection(socket, callback);
+            //    }
             }
 
         }, 5); // wait 5 milisecond for the connection...

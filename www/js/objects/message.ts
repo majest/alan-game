@@ -69,12 +69,15 @@ class Weapon extends Item {
     public damageShield: number;
     public damageHull: number;
     public object: string;
-
+    public range: number;
 }
 
 
 class Properties extends Serializer {
     // how fast ship is turning
+
+    // player type - player/ai
+    public type: string;
     public turnRate: number;
     public speed: number;
     public breakingForce: number;
@@ -119,7 +122,7 @@ class Properties extends Serializer {
     }
 
 
-    public static factory() {
+    public static factory(type = "player") {
         var properties = new Properties();
         properties.turnRate = 3;
         properties.speed = 60;
@@ -129,6 +132,7 @@ class Properties extends Serializer {
         properties.currentShield = 250;
         properties.maxHull = 140;
         properties.maxShield = 250;
+        properties.type = type;
 
         var weapon = new Weapon();
         weapon.damageShield = 3;
@@ -136,7 +140,7 @@ class Properties extends Serializer {
         weapon.name = 'Projectile Turrent';
         weapon.type = 'weapon';
         weapon.object = 'bullets';
-
+        weapon.range = 10;
         properties.slot1 = weapon;
         return properties;
     }
@@ -183,6 +187,14 @@ class Message  extends Serializer {
         this.location = location;
     }
 
+    setProperties(properties: Properties) {
+        this.action = 'properties';
+        this.properties = properties;
+    }
+
+    setDestroy() {
+        this.action = 'destroy';
+    }
     // setMovement(movement: Movement) {
     //     this.action = 'move';
     //     this.movement = movement;

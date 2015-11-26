@@ -101,7 +101,8 @@ var Properties = (function (_super) {
     Properties.prototype.setHull = function (hull) {
         this.currentHull = hull;
     };
-    Properties.factory = function () {
+    Properties.factory = function (type) {
+        if (type === void 0) { type = "player"; }
         var properties = new Properties();
         properties.turnRate = 3;
         properties.speed = 60;
@@ -111,12 +112,14 @@ var Properties = (function (_super) {
         properties.currentShield = 250;
         properties.maxHull = 140;
         properties.maxShield = 250;
+        properties.type = type;
         var weapon = new Weapon();
         weapon.damageShield = 3;
         weapon.damageHull = 3;
         weapon.name = 'Projectile Turrent';
         weapon.type = 'weapon';
         weapon.object = 'bullets';
+        weapon.range = 10;
         properties.slot1 = weapon;
         return properties;
     };
@@ -151,6 +154,13 @@ var Message = (function (_super) {
     Message.prototype.setLocation = function (location) {
         this.action = 'location';
         this.location = location;
+    };
+    Message.prototype.setProperties = function (properties) {
+        this.action = 'properties';
+        this.properties = properties;
+    };
+    Message.prototype.setDestroy = function () {
+        this.action = 'destroy';
     };
     Message.prototype.hasDestination = function () {
         if (typeof this.destination !== 'undefined') {

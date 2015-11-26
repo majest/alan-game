@@ -12,6 +12,8 @@ var HPBar = (function () {
         this.name = name;
         this.bgbar = this.drawBar(x, y, '#ff0000');
         this.hpbar = this.drawBar(x, y, color);
+        this.hpbar.alpha = 0.6;
+        this.bgbar.alpha = 0.6;
         this.set(percentage);
     }
     HPBar.prototype.drawBar = function (x, y, color) {
@@ -47,6 +49,28 @@ var HPBar = (function () {
     };
     return HPBar;
 })();
+var Shield = (function () {
+    function Shield(x, y) {
+        var shield = game.add.sprite(x, y, 'shield');
+        shield.anchor.setTo(0.5, 0.48);
+        shield.scale.setTo(0.4, 0.4);
+        shield.visible = false;
+        shield.tint = 0x0099ff;
+        this.sprite = shield;
+    }
+    Shield.prototype.update = function (x, y) {
+        this.sprite.x = x;
+        this.sprite.y = y;
+        if (game.time.now > this.shieldVisibleTime) {
+            this.sprite.visible = false;
+        }
+    };
+    Shield.prototype.show = function () {
+        this.shieldVisibleTime = game.time.now + 50;
+        this.sprite.visible = true;
+    };
+    return Shield;
+})();
 var Ship;
 (function (Ship_1) {
     var Ship = (function (_super) {
@@ -63,7 +87,7 @@ var Ship;
             this.bullets = this.game.add.group();
             this.bullets.enableBody = true;
             this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
-            this.bullets.createMultiple(50, 'bullet');
+            this.bullets.createMultiple(10, 'bullet');
             this.bullets.setAll('checkWorldBounds', true);
             this.bullets.setAll('outOfBoundsKill', true);
             this.body.bounce.x = 0.5;
@@ -82,10 +106,7 @@ var Ship;
             this.crosshair.visible = false;
             this.crosshair.anchor.setTo(0.5, 0.65);
             this.crosshair.alpha = 0.5;
-            this.shield = this.game.add.sprite(x, y, 'shield');
-            this.shield.anchor.setTo(0.5, 0.48);
-            this.shield.scale.setTo(0.3, 0.3);
-            this.shield.visible = false;
+            this.shield = new Shield(this.x, this.y);
             this.shieldHpBar = new HPBar('shield', this.x - this.width, this.y + this.height - 10, '#0099ff', 100);
             this.hullHpBar = new HPBar('hull', this.x - this.width, this.y + this.height - 10, '#00ff00', 100);
             console.log(this.id + ':Ship::constructor - x,y' + x + ',' + y);
@@ -107,12 +128,11 @@ var Ship;
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
             this.crosshair.rotation = this.crosshair.rotation + 0.01;
-            this.shield.x = this.x;
-            this.shield.y = this.y;
+            this.shield.update(this.x, this.y);
             this.updateName();
             this.shieldHpBar.update(this.x - this.width + 10, this.y + this.height - 10);
             this.hullHpBar.update(this.x - this.width + 10, this.y + this.height - 7);
-            if (this.firing) {
+            if (this.firing && this.target) {
                 this.firingAnim(this.target);
             }
             if (this.bullets) {
@@ -135,6 +155,9 @@ var Ship;
         };
         Ship.prototype.takeHit = function (hit) {
             if (this.hasShield()) {
+                this.shield.show();
+                this.shieldHpBar.shieldVisibleTime = this.game.time.now + 50;
+                this.shield.visible = true;
                 var shieldLeft = this.properties.getCurrentShield() - hit;
                 if (shieldLeft < 0) {
                     hit = Math.abs(shieldLeft);
@@ -152,9 +175,19 @@ var Ship;
                 this.properties.setHull(hullLeft);
                 this.hullHpBar.set(this.properties.getHullPercentage());
             }
-            if (!this.hasHull() && this.alive) {
-                this.die();
+            if (!this.hasHull() && this.alive && (this.id == playerId || this.properties.type == 'ai')) {
+                this.sendDestroy();
             }
+        };
+        Ship.prototype.sendDestroy = function () {
+            var message = new Message();
+            message.setId(this.id);
+            message.setDestroy();
+            transporter.sendMessage(message);
+        };
+        Ship.prototype.updateHpBars = function () {
+            this.hullHpBar.set(this.properties.getHullPercentage());
+            this.shieldHpBar.set(this.properties.getShieldPercentage());
         };
         Ship.prototype.hasHull = function () {
             if (this.properties.getCurrentHull() > 0) {
@@ -170,11 +203,19 @@ var Ship;
             if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && this.bullets.countDead() > 0) {
                 this.nextFire = this.game.time.now + this.fireRate;
                 var bullet = this.bullets.getFirstDead();
+                bullet.rotation = game.physics.arcade.angleBetween(this, ship);
                 bullet.reset(this.x - 4, this.y - 4);
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);
             }
             if (this.game.time.now > this.fireDuration && this.firing) {
                 this.firing = false;
+                ship.finishedShooting();
+                console.log(this.id + ':Ship::firingAnim - finished firing');
+            }
+        };
+        Ship.prototype.finishedShooting = function () {
+            if (this.id == playerId) {
+                this.sendProperties();
             }
         };
         Ship.prototype.die = function () {
@@ -188,9 +229,18 @@ var Ship;
             this.name.destroy();
             this.kill();
         };
+        Ship.prototype.sendProperties = function () {
+            var message = new Message();
+            message.setId(this.id);
+            message.setProperties(this.properties);
+            transporter.sendMessage(message);
+        };
         Ship.prototype.acquireTarget = function (ship, pointer) {
-            console.log(this.id + ':Ship::makeSelfATarget');
-            if (ship.id != playerId) {
+            if (ship != null && ship.id != playerId) {
+                if (this.target != null && this.target.id == ship.id) {
+                    return;
+                }
+                console.log(this.id + ':Ship::acquireTarget');
                 if (player.ship.hasTarget()) {
                     player.ship.removeTarget();
                 }
@@ -285,7 +335,10 @@ var Ship;
             if (message.action == 'fire') {
                 this.fire();
             }
-            if (message.action == 'login' || message.action == 'create') {
+            if (message.action == 'destroy') {
+                this.die();
+            }
+            if (message.action == 'login' || message.action == 'create' || (message.action == 'properties' && playerId != this.id)) {
                 console.log(message);
                 console.log(this.id + ':Ship.handleMessage - Setting ship properties');
                 this.setProperties(message.properties);
@@ -333,6 +386,7 @@ var Ship;
             this.properties = properties;
             this.body.drag.set(this.properties.breakingForce);
             this.body.maxVelocity.set(this.properties.speed);
+            this.updateHpBars();
         };
         Ship.prototype.getProperties = function () {
             return this.properties;
