@@ -63,7 +63,7 @@ func main() {
 	http.HandleFunc("/ws", serveWs)
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		fmt.Sprintf("Error: ListenAndServe: %s\n", err)
 	}
 }
 
@@ -73,8 +73,10 @@ func (h *hub) run() {
 		select {
 		case c := <-h.register:
 			h.connections[c] = true
+			fmt.SPrintf("Registering conenction %s\n", c);
 		case c := <-h.unregister:
 			if _, ok := h.connections[c]; ok {
+				fmt.Println("Unregistering connection");
 				delete(h.connections, c)
 				close(c.send)
 			}
@@ -141,13 +143,16 @@ func (c *connection) writePump() {
 		case message, ok := <-c.send:
 			if !ok {
 				c.write(websocket.CloseMessage, []byte{})
+				fmt.Println("Closing message")
 				return
 			}
 			if err := c.write(websocket.TextMessage, message); err != nil {
+				fmt.Println("Error sending message : %s", err)
 				return
 			}
 		case <-ticker.C:
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
+				fmt.Println("Error sending ping : %s", err)
 				return
 			}
 		}
@@ -159,7 +164,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", "*")
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 	c := &connection{send: make(chan []byte, 256), ws: ws}

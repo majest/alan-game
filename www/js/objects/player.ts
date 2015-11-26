@@ -56,6 +56,10 @@ class HPBar {
         game.add.tween(this.hpbar).to( { width: newWidth }, this.animDuration, Phaser.Easing.Linear.None, true);
     };
 
+    destroy() {
+        this.hpbar.destroy();
+        this.bgbar.destroy();
+    }
 }
 
 
@@ -90,7 +94,7 @@ module Ship {
         bullets;
 
         // action handler to access other ships
-        actionHandler;
+        actionHandler : ActionHandler;
 
         // sets the targeted ship
         target = null;
@@ -104,6 +108,7 @@ module Ship {
 
         healthPercentage = 100;
 
+        explosion;
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
 
@@ -164,8 +169,17 @@ module Ship {
 
             console.log(this.id + ':Ship::constructor - x,y' + x + ',' + y);
 
+
+            this.explosion = game.add.sprite(0, 0, 'explosion');
+            this.explosion.anchor.setTo(0.5,0.5);
+            this.explosion.visible = false;
+            this.explosion.animations.add('explode');
+
+
             // game.onPause.add(this.gamePause, this);
             // game.onResume.add(this.gameResume, this);
+
+
         }
 
         gamePause() {
@@ -177,6 +191,8 @@ module Ship {
         }
 
         update() {
+
+            if (!this.alive) return;
 
             this.handleKeys();
             this.crosshair.x = this.x;
@@ -225,7 +241,6 @@ module Ship {
 
         takeHit(hit) {
 
-
             // if we still have shield
             if (this.hasShield()) {
                 // shield left
@@ -256,8 +271,10 @@ module Ship {
                 this.hullHpBar.set(this.properties.getHullPercentage());
             }
 
-            if (!this.hasHull()) {
-                console.log('DIE');
+            if (!this.hasHull() && this.alive) {
+
+
+                this.die();
             }
         }
 
@@ -297,13 +314,25 @@ module Ship {
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);// .moveToPointer(bullet, 300);
             }
 
-            if (this.game.time.now > this.fireDuration) {
+            if (this.game.time.now > this.fireDuration && this.firing) {
                 // setting back
                 this.firing = false;
                 // console.log(this.id + ':Ship - setting destination true');
             }
         }
 
+        die() {
+
+            this.explosion.x = this.x;
+            this.explosion.y = this.y;
+            this.explosion.visible = true;
+            this.explosion.animations.play('explode', 30, false);
+            this.crosshair.destroy();
+            this.shieldHpBar.destroy();
+            this.hullHpBar.destroy();
+            this.name.destroy();
+            this.kill();
+        }
         // acquire target - makes the crosshair visible on the ship we have clicked on
         acquireTarget(ship, pointer) {
             console.log(this.id + ':Ship::makeSelfATarget');
@@ -381,7 +410,22 @@ module Ship {
         handleKeys() {
             // handle key action
             if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id){
-                this.fire();
+                console.log(this.id + ':Ship::handleKeys - Keyboard Firing firing:' + this.firing);
+                this.sendFire();
+                this.firing = true;
+            }
+        }
+
+        sendFire() {
+
+            if (!this.firing && playerId == this.id && this.target) {
+                console.log(this.id + ':Ship::sendFire - firing:' + this.firing);
+                this.firing = true;
+
+                var message = new Message();
+                message.setId(this.id);
+                message.action = 'fire';
+                transporter.sendMessage(message);
             }
         }
         /**
@@ -391,20 +435,12 @@ module Ship {
         fire() {
 
             /// prevent of triggering the method multiple times
-            if (this.firing) return;
-
-            if (this.target) {
+            if (this.target && !this.firing) {
                 console.log(this.id + ':Ship::fire');
                 this.fireDuration = this.game.time.now + 1000;
                 this.firing = true;
-
-                var message = new Message();
-                message.setId(this.id);
-                message.action = 'fire';
-                transporter.sendMessage(message);
-
             } else {
-                console.log(this.id + ':Ship:fire  - NO TARGET SET');
+                console.log('No target');
             }
         }
 
@@ -438,7 +474,7 @@ module Ship {
             }
 
             if (message.action == 'fire') {
-                this.fire(this.actionHandler.getUpdateGroups().getById(message.target));
+                this.fire();
             }
 
             // set the ship properties if they have been passed
@@ -585,7 +621,7 @@ module Group {
                 //this.ships.push(sprite);
             }
 
-            getById(id: string) {
+            getById(id: string) : Ship.Ship  {
 
                 var displayObject : Ship.Ship
                 for (var key in this.children) {

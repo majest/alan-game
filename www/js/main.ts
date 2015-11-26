@@ -20,7 +20,7 @@ class Game {
     ready = false;
     // static variables
     public static gameRatio;
-    public static resx: number = 800;
+    public static resx: number = 1000;
 
     constructor() {
 
@@ -161,6 +161,8 @@ class Setup {
         game.load.image('shield', 'assets/shield.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
         game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
+        game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
+
     }
     create() {
 
@@ -185,18 +187,29 @@ class Setup {
         button.scale.set(0.5);
         button.fixedToCamera = true;
 
+
     }
 
     fire() {
-        player.ship.fire();
+        player.ship.sendFire();
     }
 
     //update the state
     update() {
-        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0) return;
-        this.actionHandler.sortedCollide(game, this.actionHandler.getUpdateGroups().children);
-        this.actionHandler.getUpdateGroups().update();
-        this.background.update(player.getShip());
+
+        var groupOfShips = this.actionHandler.getUpdateGroups()
+
+        if (!this.ready || groupOfShips.length == 0) return;
+
+        this.actionHandler.sortedCollide(game, groupOfShips.children);
+
+        if (typeof groupOfShips != 'undefined') {
+            groupOfShips.update();
+        }
+
+        if (player.alive) {
+            this.background.update(player.getShip());
+        }
     }
 
 }
@@ -249,13 +262,20 @@ class Connection {
 
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');
+                this.conn = null;
             }
 
             this.conn.onmessage = function(evt) {
                 transporter.parse(evt.data);
             }
-        } else {
-            console.log('No browser support');
+
+            this.conn.onopen = function(evt) {
+                console.log("Connection established");
+            }
+
+            this.conn.onerror = function(evt) {
+                console.log("Conenction ERROR: " + evt.data);
+            }
         }
     }
 
@@ -281,6 +301,10 @@ class MessageTransport {
         console.log('Creating Message transport');
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
+    }
+
+    resetConnection() {
+        this.connection = new Connection(this);
     }
 
     parse(messageData) {
@@ -309,7 +333,7 @@ class MessageTransport {
 class ActionHandler {
 
     transporter: MessageTransport;
-    ships;
+    ships : Group.Ship;
     playerId;
     game;
     properties;
@@ -347,13 +371,13 @@ class ActionHandler {
         message.logIn(loc, Properties.factory());
         transporter.sendMessage(message);
 
-        // var loc = new Loc();
-        // loc.set(400,400);
+        var loc = new Loc();
+        loc.set(400,400);
 
-        // var message = new Message();
-        // message.setId('DUMMY');
-        // message.addPlayer(loc, Properties.factory());
-        // transporter.sendMessage(message);
+        var message = new Message();
+        message.setId('DUMMY');
+        message.addPlayer(loc, Properties.factory());
+        transporter.sendMessage(message);
         //
         // var spr = game.add.group();
         // spr.create(300, 300, 'crosshair');
@@ -372,7 +396,7 @@ class ActionHandler {
     }
 
 
-    getUpdateGroups() {
+    getUpdateGroups() : Group.Ship {
         return this.ships;
     }
 
@@ -410,9 +434,9 @@ class ActionHandler {
 
 
         // handle message async, it will handle stuff like location and destination
-        this.ships.forEach(function(ship) {
+        this.ships.forEach((ship) => {
             ship.handleMessage(message);
-        });
+        }, this);
     }
 
     leftOfBody(b) {
@@ -445,6 +469,9 @@ class ActionHandler {
 
 
 function waitForSocketConnection(socket, callback){
+
+    var timer = 0;
+
     setTimeout(
         function () {
             if (socket.readyState === 1) {
@@ -454,7 +481,14 @@ function waitForSocketConnection(socket, callback){
                 return;
 
             } else {
-                console.log("wait for connection...")
+                console.log("wait for connection... state:" + socket.readyState);
+                timer+=5;
+
+                if (timer => 5000) {
+
+                    // reset the connection
+                //    alert('Connection Lost. Please restart the game');
+                }
                 waitForSocketConnection(socket, callback);
             }
 

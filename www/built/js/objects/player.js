@@ -41,6 +41,10 @@ var HPBar = (function () {
         game.add.tween(this.hpbar).to({ width: newWidth }, this.animDuration, Phaser.Easing.Linear.None, true);
     };
     ;
+    HPBar.prototype.destroy = function () {
+        this.hpbar.destroy();
+        this.bgbar.destroy();
+    };
     return HPBar;
 })();
 var Ship;
@@ -85,6 +89,10 @@ var Ship;
             this.shieldHpBar = new HPBar('shield', this.x - this.width, this.y + this.height - 10, '#0099ff', 100);
             this.hullHpBar = new HPBar('hull', this.x - this.width, this.y + this.height - 10, '#00ff00', 100);
             console.log(this.id + ':Ship::constructor - x,y' + x + ',' + y);
+            this.explosion = game.add.sprite(0, 0, 'explosion');
+            this.explosion.anchor.setTo(0.5, 0.5);
+            this.explosion.visible = false;
+            this.explosion.animations.add('explode');
         }
         Ship.prototype.gamePause = function () {
             console.log('pause');
@@ -93,6 +101,8 @@ var Ship;
             console.log('resume');
         };
         Ship.prototype.update = function () {
+            if (!this.alive)
+                return;
             this.handleKeys();
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
@@ -142,8 +152,8 @@ var Ship;
                 this.properties.setHull(hullLeft);
                 this.hullHpBar.set(this.properties.getHullPercentage());
             }
-            if (!this.hasHull()) {
-                console.log('DIE');
+            if (!this.hasHull() && this.alive) {
+                this.die();
             }
         };
         Ship.prototype.hasHull = function () {
@@ -163,9 +173,20 @@ var Ship;
                 bullet.reset(this.x - 4, this.y - 4);
                 this.game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);
             }
-            if (this.game.time.now > this.fireDuration) {
+            if (this.game.time.now > this.fireDuration && this.firing) {
                 this.firing = false;
             }
+        };
+        Ship.prototype.die = function () {
+            this.explosion.x = this.x;
+            this.explosion.y = this.y;
+            this.explosion.visible = true;
+            this.explosion.animations.play('explode', 30, false);
+            this.crosshair.destroy();
+            this.shieldHpBar.destroy();
+            this.hullHpBar.destroy();
+            this.name.destroy();
+            this.kill();
         };
         Ship.prototype.acquireTarget = function (ship, pointer) {
             console.log(this.id + ':Ship::makeSelfATarget');
@@ -218,23 +239,29 @@ var Ship;
         };
         Ship.prototype.handleKeys = function () {
             if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id) {
-                this.fire();
+                console.log(this.id + ':Ship::handleKeys - Keyboard Firing firing:' + this.firing);
+                this.sendFire();
+                this.firing = true;
             }
         };
-        Ship.prototype.fire = function () {
-            if (this.firing)
-                return;
-            if (this.target) {
-                console.log(this.id + ':Ship::fire');
-                this.fireDuration = this.game.time.now + 1000;
+        Ship.prototype.sendFire = function () {
+            if (!this.firing && playerId == this.id && this.target) {
+                console.log(this.id + ':Ship::sendFire - firing:' + this.firing);
                 this.firing = true;
                 var message = new Message();
                 message.setId(this.id);
                 message.action = 'fire';
                 transporter.sendMessage(message);
             }
+        };
+        Ship.prototype.fire = function () {
+            if (this.target && !this.firing) {
+                console.log(this.id + ':Ship::fire');
+                this.fireDuration = this.game.time.now + 1000;
+                this.firing = true;
+            }
             else {
-                console.log(this.id + ':Ship:fire  - NO TARGET SET');
+                console.log('No target');
             }
         };
         Ship.prototype.handleMessage = function (message) {
@@ -256,7 +283,7 @@ var Ship;
                 this.setTarget(this.actionHandler.getUpdateGroups().getById(message.target));
             }
             if (message.action == 'fire') {
-                this.fire(this.actionHandler.getUpdateGroups().getById(message.target));
+                this.fire();
             }
             if (message.action == 'login' || message.action == 'create') {
                 console.log(message);

@@ -9,9 +9,6 @@ interface SlotAble {
     type: string;
 }
 
-
-
-
 class Serializer  {
 
     serialize() {
@@ -86,7 +83,7 @@ class Properties extends Serializer {
     public currentShield: number;
     public maxHull: number;
     public maxShield: number;
-    public slot1: Item;
+    public slot1: Weapon;
 
     getCurrentHull() {
         return this.currentHull;
@@ -135,7 +132,7 @@ class Properties extends Serializer {
 
         var weapon = new Weapon();
         weapon.damageShield = 3;
-        weapon.damageHull = 5;
+        weapon.damageHull = 3;
         weapon.name = 'Projectile Turrent';
         weapon.type = 'weapon';
         weapon.object = 'bullets';

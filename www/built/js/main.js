@@ -26,7 +26,7 @@ var Game = (function () {
     };
     Game.prototype.handleIncorrect = function () {
     };
-    Game.resx = 800;
+    Game.resx = 1000;
     return Game;
 })();
 var Setup = (function () {
@@ -46,6 +46,7 @@ var Setup = (function () {
         game.load.image('shield', 'assets/shield.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
         game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
+        game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
@@ -64,14 +65,19 @@ var Setup = (function () {
         button.fixedToCamera = true;
     };
     Setup.prototype.fire = function () {
-        player.ship.fire();
+        player.ship.sendFire();
     };
     Setup.prototype.update = function () {
-        if (!this.ready || this.actionHandler.getUpdateGroups().length == 0)
+        var groupOfShips = this.actionHandler.getUpdateGroups();
+        if (!this.ready || groupOfShips.length == 0)
             return;
-        this.actionHandler.sortedCollide(game, this.actionHandler.getUpdateGroups().children);
-        this.actionHandler.getUpdateGroups().update();
-        this.background.update(player.getShip());
+        this.actionHandler.sortedCollide(game, groupOfShips.children);
+        if (typeof groupOfShips != 'undefined') {
+            groupOfShips.update();
+        }
+        if (player.alive) {
+            this.background.update(player.getShip());
+        }
     };
     return Setup;
 })();
@@ -108,13 +114,17 @@ var Connection = (function () {
             this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
             this.conn.onclose = function (evt) {
                 console.log('Connection closed');
+                this.conn = null;
             };
             this.conn.onmessage = function (evt) {
                 transporter.parse(evt.data);
             };
-        }
-        else {
-            console.log('No browser support');
+            this.conn.onopen = function (evt) {
+                console.log("Connection established");
+            };
+            this.conn.onerror = function (evt) {
+                console.log("Conenction ERROR: " + evt.data);
+            };
         }
     }
     Connection.prototype.getMessage = function () {
@@ -134,6 +144,9 @@ var MessageTransport = (function () {
         this.connection = new Connection(this);
         this.actionHandler = actionHandler;
     }
+    MessageTransport.prototype.resetConnection = function () {
+        this.connection = new Connection(this);
+    };
     MessageTransport.prototype.parse = function (messageData) {
         var data = JSON.parse(messageData);
         var message = Serializer.load(data);
@@ -173,6 +186,12 @@ var ActionHandler = (function () {
         message.setId(playerId);
         message.logIn(loc, Properties.factory());
         transporter.sendMessage(message);
+        var loc = new Loc();
+        loc.set(400, 400);
+        var message = new Message();
+        message.setId('DUMMY');
+        message.addPlayer(loc, Properties.factory());
+        transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
         console.log('ActionHandler::broadCast');
@@ -211,7 +230,7 @@ var ActionHandler = (function () {
         }
         this.ships.forEach(function (ship) {
             ship.handleMessage(message);
-        });
+        }, this);
     };
     ActionHandler.prototype.leftOfBody = function (b) {
         return b.x - b.halfWidth;
@@ -239,6 +258,7 @@ var ActionHandler = (function () {
     return ActionHandler;
 })();
 function waitForSocketConnection(socket, callback) {
+    var timer = 0;
     setTimeout(function () {
         if (socket.readyState === 1) {
             if (callback != null) {
@@ -247,7 +267,10 @@ function waitForSocketConnection(socket, callback) {
             return;
         }
         else {
-            console.log("wait for connection...");
+            console.log("wait for connection... state:" + socket.readyState);
+            timer += 5;
+            if (function (timer) { return 5000; }) {
+            }
             waitForSocketConnection(socket, callback);
         }
     }, 5);
