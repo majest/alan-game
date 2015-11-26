@@ -14,18 +14,10 @@ var Game = (function () {
         console.log('==========  width: ' + Game.resx);
         console.log('==========  window width: ' + winWidth);
         console.log('==========  window height: ' + winHeight);
-        game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.WEBGL, 'phaser');
+        game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.CANVAS, 'phaser');
         game.state.add('setup', Setup);
         game.state.start('setup');
     }
-    Game.prototype.create = function () {
-    };
-    Game.prototype.preload = function () {
-    };
-    Game.prototype.handleCorrect = function () {
-    };
-    Game.prototype.handleIncorrect = function () {
-    };
     Game.resx = 1000;
     return Game;
 })();
@@ -50,6 +42,7 @@ var Setup = (function () {
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
+        game.plugins.add(Phaser.Plugin.Debug);
         game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         game.physics.startSystem(Phaser.Physics.ARCADE);
         game.world.setBounds(0, 0, 20000000, 20000000);
@@ -114,7 +107,6 @@ var Connection = (function () {
             this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
             this.conn.onclose = function (evt) {
                 console.log('Connection closed');
-                this.conn.close();
             };
             this.conn.onmessage = function (evt) {
                 transporter.parse(evt.data);
@@ -195,7 +187,7 @@ var ActionHandler = (function () {
         console.log('ActionHandler::broadCast');
         var message = new Message();
         message.setId(playerId);
-        message.addPlayer(player.getShip().getLocation(), Properties.factory());
+        message.addPlayer(player.getShip().getLocation(), player.getShip().getProperties());
         transporter.sendMessage(message);
     };
     ActionHandler.prototype.getShips = function () {

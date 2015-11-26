@@ -3,7 +3,6 @@
 /// <reference path="objects/player.ts"/>
 /// <reference path="objects/message.ts"/>
 
-
 var game;
 var firstRunLandscape;
 var playerId;
@@ -35,95 +34,15 @@ class Game {
         console.log('==========  window height: ' + winHeight);
 
 
-        game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.WEBGL, 'phaser');
+        game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.CANVAS, 'phaser');
+        //game = new Phaser.Game(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio, Phaser.AUTO, 'phaser');
+
 
         game.state.add('setup', Setup);
         game.state.start('setup');
+
+
     }
-
-    // init the world
-    create() {
-        // console.log('Creating world');
-        //
-        // game.world.setBounds(0, 0, 20000000, 20000000);
-        // game.physics.startSystem(Phaser.Physics.ARCADE);
-        // //game.physics.p2.defaultRestitution = 0.0; // to jak sie statek odbija
-        //
-        //game.renderer.clearBeforeRender = false;
-        //game.renderer.roundPixels = true;
-        //
-        // game.time.advancedTiming = true;
-        // console.log('-------------------------------------------');
-        // //  This will run in Canvas mode, so let's gain a little speed and display
-        // //game.renderer.clearBeforeRender = false;
-        // //game.renderer.roundPixels = true;
-        //
-        // this.actionHandler = ActionHandler.getInstance();
-        // this.actionHandler.init();
-        //
-        // //new Planet(game, 0, 0, 0, 'planet-desert');
-        // this.transporter = new MessageTransport(this.actionHandler);
-        // this.actionHandler.setTransporter(this.transporter);
-        // this.actionHandler.createPlayer();
-
-        //game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
-
-         // Keep original size
-         // game.scale.fullScreenScaleMode = Phaser.ScaleManager.NO_SCALE;
-         //
-         // Maintain aspect ratio
-        //game.scale.fullScreenScaleMode = Phaser.ScaleManager.SHOW_ALL;
-
-        //game.input.onDown.add(goFullScreen, this);
-    }
-
-    // preload
-    preload() {
-
-
-
-        //game.stage.disableVisibilityChange = true;
-        //game.config.forceSetTimeOut = true;
-        //var firstRunLandscape = game.scale.isGameLandscape;
-
-        /* resize game */
-        // game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
-        // game.scale.pageAlignHorizontally = true;
-        // game.scale.pageAlignVertically = true;
-        // game.scale.forceLandscape = true;
-        // game.scale.parentIsWindow = true;
-        // game.scale.refresh();
-
-        // game.load.image('bullet', 'assets/bullets.png');
-        // game.load.image('ship', 'assets/ships/fury.png');
-        // game.load.image('dust', 'assets/pixel.png');
-        // game.load.image('crosshair', 'assets/crosshair.png');
-    }
-
-    handleCorrect() {
-        // if(!game.device.desktop){
-        //     if(firstRunLandscape){
-        //         gameRatio = window.innerWidth/window.innerHeight;
-        //         game.width = Math.ceil(resx*gameRatio);
-        //         game.height = Math.ceil(resy*gameRatio);;
-        //         game.renderer.resize(game.width,game.height);
-        //         //game.state.start("Play");
-        //     }
-        // //    document.getElementById("turn").style.display="none";
-        // }
-    }
-
-    handleIncorrect() {
-        // if(!game.device.desktop){
-        //     gameRatio = window.innerWidth/window.innerHeight;
-        //     game.width = Math.ceil(resx*gameRatio);
-        //     game.height = Math.ceil(resy*gameRatio);;
-        //     game.renderer.resize(game.width,game.height);
-        // }
-    }
-    // debug
-
-
 
 }
 
@@ -151,6 +70,7 @@ class Setup {
     }
 
     preload() {
+
         game.load.image('space1', 'assets/space1.jpg');
         game.load.image('space2', 'assets/space2.jpg');
         game.load.image('planet-earth', 'assets/planets/earth.png');
@@ -167,7 +87,7 @@ class Setup {
     create() {
 
         console.log('Creating world');
-
+        game.plugins.add(Phaser.Plugin.Debug);
         game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         game.physics.startSystem(Phaser.Physics.ARCADE);
         game.world.setBounds(0, 0, 20000000, 20000000);
@@ -262,7 +182,6 @@ class Connection {
 
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');
-                this.conn.close()
             }
 
             this.conn.onmessage = function(evt) {
@@ -365,6 +284,7 @@ class ActionHandler {
         message.logIn(loc, Properties.factory());
         transporter.sendMessage(message);
 
+
         var loc = new Loc();
         loc.set(400,400);
 
@@ -372,16 +292,13 @@ class ActionHandler {
         message.setId('DUMMY');
         message.addPlayer(loc, Properties.factory('ai'));
         transporter.sendMessage(message);
-        //
-        // var spr = game.add.group();
-        // spr.create(300, 300, 'crosshair');
     }
 
     broadCast() {
         console.log('ActionHandler::broadCast');
         var message = new Message();
         message.setId(playerId);
-        message.addPlayer(player.getShip().getLocation(), Properties.factory());
+        message.addPlayer(player.getShip().getLocation(), player.getShip().getProperties());
         transporter.sendMessage(message);
     }
 
