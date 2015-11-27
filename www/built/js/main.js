@@ -37,8 +37,9 @@ var Setup = (function () {
         game.load.image('dust', 'assets/pixel.png');
         game.load.image('shield', 'assets/shield-1.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
-        game.load.spritesheet('button', 'assets/buttons.png', 193, 71);
+        game.load.image('button', 'assets/shield-1.png');
         game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
+        game.load.spritesheet('thruster', 'assets/thruster.png', 50, 178);
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
@@ -53,8 +54,8 @@ var Setup = (function () {
         transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
-        var button = game.add.button(10, 20, 'button', this.fire, this, 2, 1, 0);
-        button.scale.set(0.5);
+        var button = game.add.button(10, 10, 'button', this.fire, this);
+        button.scale.set(1);
         button.fixedToCamera = true;
     };
     Setup.prototype.fire = function () {
@@ -68,7 +69,7 @@ var Setup = (function () {
         if (typeof groupOfShips != 'undefined') {
             groupOfShips.update();
         }
-        if (player.alive) {
+        if (player.ship.alive) {
             this.background.update(player.getShip());
         }
     };
@@ -80,7 +81,7 @@ var Background = (function () {
         this.space1.fixedToCamera = true;
         this.space2 = game.add.tileSprite(0, 0, Game.resx, Math.ceil(Game.resx * Game.gameRatio), 'space2');
         this.space2.fixedToCamera = true;
-        this.space2.alpha = 0.4;
+        this.space2.alpha = 0.5;
         var planet = game.add.sprite(500, 400, "planet-earth");
         planet.scale.set(0.4);
         planet.anchor.setTo(0.5, 0.5);
@@ -91,11 +92,11 @@ var Background = (function () {
     Background.prototype.update = function (player) {
         if (!game.camera.atLimit.x) {
             this.space1.tilePosition.x -= (player.body.velocity.x) * game.time.physicsElapsed * 0.4;
-            this.space2.tilePosition.x -= (player.body.velocity.x) * game.time.physicsElapsed;
+            this.space2.tilePosition.x -= (player.body.velocity.x) * game.time.physicsElapsed * 0.6;
         }
         if (!game.camera.atLimit.y) {
             this.space1.tilePosition.y -= (player.body.velocity.y) * game.time.physicsElapsed * 0.4;
-            this.space2.tilePosition.y -= (player.body.velocity.y) * game.time.physicsElapsed;
+            this.space2.tilePosition.y -= (player.body.velocity.y) * game.time.physicsElapsed * 0.6;
         }
     };
     return Background;

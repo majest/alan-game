@@ -145,6 +145,7 @@ module Ship {
         healthPercentage = 100;
 
         explosion;
+        thruster;
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
 
@@ -177,7 +178,8 @@ module Ship {
             this.crosshair = this.game.add.sprite(x,y,'crosshair');
             this.crosshair.visible = false;
             this.crosshair.anchor.setTo(0.5,0.65);
-            this.crosshair.alpha = 0.5
+            this.crosshair.scale.setTo(1.3,1.4);
+            this.crosshair.alpha = 0.4
 
 
 
@@ -210,7 +212,14 @@ module Ship {
             this.explosion.visible = false;
             this.explosion.animations.add('explode');
 
-
+            this.thruster = game.add.sprite(0, 0, 'thruster');
+            this.thruster.anchor.setTo(0.5,1.2);
+            this.thruster.visible = false;
+            this.thruster.scale.setTo(0.5,0.5);
+            this.thruster.animations.add('thruster');
+            this.thruster.animations.play('thruster', 30, true);
+            this.thruster.angle=-90;
+            this.addChild(this.thruster);
             // game.onPause.add(this.gamePause, this);
             // game.onResume.add(this.gameResume, this);
 
@@ -236,10 +245,14 @@ module Ship {
             this.shield.update(this.x, this.y);
             this.updateName();
 
-
             this.shieldHpBar.update(this.x - this.width + 10, this.y +  this.height - 10);
             this.hullHpBar.update(this.x - this.width + 10, this.y +  this.height - 7);
 
+            if (this.destination != null && !this.thruster.visible) {
+                this.thruster.visible = true;
+            } else if (this.destination == null && this.thruster.visible) {
+                this.thruster.visible = false;
+            }
 
             if (this.firing && this.target) {
                 this.firingAnim(this.target);

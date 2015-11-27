@@ -105,7 +105,8 @@ var Ship;
             this.crosshair = this.game.add.sprite(x, y, 'crosshair');
             this.crosshair.visible = false;
             this.crosshair.anchor.setTo(0.5, 0.65);
-            this.crosshair.alpha = 0.5;
+            this.crosshair.scale.setTo(1.3, 1.4);
+            this.crosshair.alpha = 0.4;
             this.shield = new Shield(this.x, this.y);
             this.shieldHpBar = new HPBar('shield', this.x - this.width, this.y + this.height - 10, '#0099ff', 100);
             this.hullHpBar = new HPBar('hull', this.x - this.width, this.y + this.height - 10, '#00ff00', 100);
@@ -114,6 +115,14 @@ var Ship;
             this.explosion.anchor.setTo(0.5, 0.5);
             this.explosion.visible = false;
             this.explosion.animations.add('explode');
+            this.thruster = game.add.sprite(0, 0, 'thruster');
+            this.thruster.anchor.setTo(0.5, 1.2);
+            this.thruster.visible = false;
+            this.thruster.scale.setTo(0.5, 0.5);
+            this.thruster.animations.add('thruster');
+            this.thruster.animations.play('thruster', 30, true);
+            this.thruster.angle = -90;
+            this.addChild(this.thruster);
         }
         Ship.prototype.gamePause = function () {
             console.log('pause');
@@ -132,6 +141,12 @@ var Ship;
             this.updateName();
             this.shieldHpBar.update(this.x - this.width + 10, this.y + this.height - 10);
             this.hullHpBar.update(this.x - this.width + 10, this.y + this.height - 7);
+            if (this.destination != null && !this.thruster.visible) {
+                this.thruster.visible = true;
+            }
+            else if (this.destination == null && this.thruster.visible) {
+                this.thruster.visible = false;
+            }
             if (this.firing && this.target) {
                 this.firingAnim(this.target);
             }
