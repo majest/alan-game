@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
     "github.com/gorilla/websocket"
     "time"
+	"fmt"
 )
 
 var addr = flag.String("addr", ":9090", "http service address")
