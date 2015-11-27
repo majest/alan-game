@@ -6,7 +6,6 @@ import (
 	"net/http"
     "github.com/gorilla/websocket"
     "time"
-    "fmt"
 )
 
 var addr = flag.String("addr", ":9090", "http service address")
@@ -73,7 +72,7 @@ func (h *hub) run() {
 		select {
 		case c := <-h.register:
 			h.connections[c] = true
-			fmt.SPrintf("Registering conenction %s\n", c);
+			fmt.Sprintf("Registering conenction %s\n", c);
 		case c := <-h.unregister:
 			if _, ok := h.connections[c]; ok {
 				fmt.Println("Unregistering connection");
