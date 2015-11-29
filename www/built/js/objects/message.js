@@ -5,17 +5,37 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var Serializer = (function () {
     function Serializer() {
+        this.gid = this.guid();
     }
+    Serializer.prototype.guid = function () {
+        function s4() {
+            return Math.floor((1 + Math.random()) * 0x10000)
+                .toString(16)
+                .substring(1);
+        }
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+            s4() + '-' + s4() + s4() + s4();
+    };
     Serializer.prototype.serialize = function () {
         var res = {};
         res['@object'] = this.getClassName();
         for (var k in this) {
             var type = typeof this[k];
+            if (type == 'function')
+                continue;
             if (type == 'string' || type == 'number') {
                 res[k] = this[k];
             }
-            else if (type == 'object') {
+            else if (type == 'object' && !Array.isArray(this[k])) {
                 res[k] = this[k].serialize();
+            }
+            else if (type == 'object' && Array.isArray(this[k])) {
+                var a = [];
+                for (var i in this[k]) {
+                    var obj = this[k][i];
+                    a.push(obj.serialize());
+                }
+                res[k] = a;
             }
         }
         return res;
@@ -26,14 +46,24 @@ var Serializer = (function () {
         return (results && results.length > 1) ? results[1] : "";
     };
     Serializer.load = function (json) {
+        console.log('loading ' + json['@object']);
         var object = Serializer.getObjectByName(json['@object']);
         for (var k in json) {
             var type = typeof json[k];
+            if (type == 'function')
+                continue;
             if (type == 'string' || type == 'number') {
                 object[k] = json[k];
             }
-            else if (type == 'object') {
+            else if (type == 'object' && json[k] != null && !Array.isArray(json[k])) {
                 object[k] = this.load(json[k]);
+            }
+            else if (type == 'object' && json[k] != null && Array.isArray(json[k])) {
+                var a = [];
+                for (var i in json[k]) {
+                    a.push(this.load(json[k][i]));
+                }
+                object[k] = a;
             }
         }
         return object;
@@ -45,8 +75,8 @@ var Serializer = (function () {
         else if (name == 'Message') {
             return new Message();
         }
-        else if (name == 'Weapon') {
-            return new Weapon();
+        else if (name == 'WeaponProperties') {
+            return new WeaponProperties();
         }
         else if (name == 'Loc') {
             return new Loc();
@@ -58,20 +88,35 @@ var Serializer = (function () {
     };
     return Serializer;
 })();
-var Item = (function (_super) {
-    __extends(Item, _super);
-    function Item() {
+var WeaponProperties = (function (_super) {
+    __extends(WeaponProperties, _super);
+    function WeaponProperties() {
         _super.apply(this, arguments);
     }
-    return Item;
+    WeaponProperties.createProjectileTurret = function () {
+        var weapon = new WeaponProperties();
+        weapon.damageShield = 3;
+        weapon.damageHull = 3;
+        weapon.name = 'Projectile Turrent';
+        weapon.type = 'projectile';
+        weapon.range = 10;
+        weapon.multiple = 10;
+        weapon.gfx = 'bullet';
+        return weapon;
+    };
+    WeaponProperties.createMissileTurret = function () {
+        var weapon = new WeaponProperties();
+        weapon.damageShield = 20;
+        weapon.damageHull = 15;
+        weapon.name = 'Missile Turrent';
+        weapon.type = 'missile';
+        weapon.gfx = 'missile';
+        weapon.range = 15;
+        weapon.multiple = 1;
+        return weapon;
+    };
+    return WeaponProperties;
 })(Serializer);
-var Weapon = (function (_super) {
-    __extends(Weapon, _super);
-    function Weapon() {
-        _super.apply(this, arguments);
-    }
-    return Weapon;
-})(Item);
 var Properties = (function (_super) {
     __extends(Properties, _super);
     function Properties() {
@@ -113,14 +158,6 @@ var Properties = (function (_super) {
         properties.maxHull = 140;
         properties.maxShield = 250;
         properties.type = type;
-        var weapon = new Weapon();
-        weapon.damageShield = 3;
-        weapon.damageHull = 3;
-        weapon.name = 'Projectile Turrent';
-        weapon.type = 'weapon';
-        weapon.object = 'bullets';
-        weapon.range = 10;
-        properties.slot1 = weapon;
         return properties;
     };
     return Properties;
@@ -155,9 +192,19 @@ var Message = (function (_super) {
         this.action = 'location';
         this.location = location;
     };
+    Message.prototype.setWeapons = function (weapons) {
+        this.action = 'weapons';
+        this.weapons = weapons;
+    };
     Message.prototype.setProperties = function (properties) {
         this.action = 'properties';
         this.properties = properties;
+    };
+    Message.prototype.addWeapon = function (weapon) {
+        if (this.weapons == null) {
+            this.weapons = [];
+        }
+        this.weapons.push(weapon);
     };
     Message.prototype.setDestroy = function () {
         this.action = 'destroy';

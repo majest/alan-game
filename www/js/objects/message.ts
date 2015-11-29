@@ -11,15 +11,39 @@ interface SlotAble {
 
 class Serializer  {
 
+    gid: string
+    constructor() {
+        this.gid = this.guid();
+    }
+
+    guid() {
+      function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+          .toString(16)
+          .substring(1);
+      }
+      return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+        s4() + '-' + s4() + s4() + s4();
+    }
+
     serialize() {
         var res = {};
         res['@object'] = this.getClassName();
         for (var k in this) {
             var type = typeof this[k];
+
+            if (type == 'function') continue;
             if (type == 'string' || type == 'number') {
                 res[k] = this[k];
-            } else if (type == 'object')  {
+            } else if (type == 'object' && !Array.isArray(this[k]))  {
                 res[k] = this[k].serialize();
+            } else if (type == 'object' && Array.isArray(this[k])) {
+                var a = [];
+                for (var i in this[k]) {
+                    var obj = this[k][i];
+                    a.push(obj.serialize());
+                }
+                res[k] = a;
             }
         }
 
@@ -35,14 +59,23 @@ class Serializer  {
     public static load(json) {
         //var input = JSON.parse(json);
 
+        console.log('loading ' + json['@object']);
         var object = Serializer.getObjectByName(json['@object']);
 
         for (var k in json) {
             var type = typeof json[k];
+
+                if (type == 'function') continue;
                 if  (type == 'string' || type == 'number') {
                     object[k] = json[k];
-                } else if (type == 'object') {
+                } else if (type == 'object' && json[k] != null && !Array.isArray(json[k]))  {
                     object[k] = this.load(json[k]);
+                } else if (type == 'object' && json[k] != null && Array.isArray(json[k]))  {
+                    var a = [];
+                    for (var i in json[k]) {
+                        a.push(this.load(json[k][i]));
+                    }
+                    object[k] = a;
                 }
         }
         return object;
@@ -51,25 +84,47 @@ class Serializer  {
     public static getObjectByName(name) : any {
         if (name == 'Properties') { return new Properties();}
         else if (name == 'Message') { return new Message();}
-        else if (name == 'Weapon') {return new Weapon();}
+        else if (name == 'WeaponProperties') {return new WeaponProperties();}
         else if (name == 'Loc') {return new Loc();}
         else if (name == 'Movement') {return new Movement();}
         return null
     }
 }
 
-class Item extends Serializer implements SlotAble {
-    name: string;
-    type: string;
-}
 
+class WeaponProperties extends Serializer {
 
-class Weapon extends Item {
-
+    public name: string;
     public damageShield: number;
     public damageHull: number;
-    public object: string;
+    public type: string;
+    public gfx: string;
     public range: number;
+    public multiple: number;
+
+    public static createProjectileTurret(): WeaponProperties {
+        var weapon = new WeaponProperties();
+        weapon.damageShield = 3;
+        weapon.damageHull = 3;
+        weapon.name = 'Projectile Turrent';
+        weapon.type = 'projectile';
+        weapon.range = 10;
+        weapon.multiple = 10
+        weapon.gfx = 'bullet';
+        return weapon;
+    }
+
+    public static createMissileTurret(): WeaponProperties {
+        var weapon = new WeaponProperties();
+        weapon.damageShield = 20;
+        weapon.damageHull = 15;
+        weapon.name = 'Missile Turrent';
+        weapon.type = 'missile';
+        weapon.gfx = 'missile';
+        weapon.range = 15;
+        weapon.multiple = 1;
+        return weapon;
+    }
 }
 
 
@@ -86,7 +141,6 @@ class Properties extends Serializer {
     public currentShield: number;
     public maxHull: number;
     public maxShield: number;
-    public slot1: Weapon;
 
     getCurrentHull() {
         return this.currentHull;
@@ -134,14 +188,7 @@ class Properties extends Serializer {
         properties.maxShield = 250;
         properties.type = type;
 
-        var weapon = new Weapon();
-        weapon.damageShield = 3;
-        weapon.damageHull = 3;
-        weapon.name = 'Projectile Turrent';
-        weapon.type = 'weapon';
-        weapon.object = 'bullets';
-        weapon.range = 10;
-        properties.slot1 = weapon;
+
         return properties;
     }
 }
@@ -155,6 +202,7 @@ class Message  extends Serializer {
     public location: Loc;
     public properties: Properties;
     public target: string;
+    public weapons: WeaponProperties[];
 
     public setId(id) {
         this.id = id;
@@ -187,9 +235,21 @@ class Message  extends Serializer {
         this.location = location;
     }
 
+    setWeapons(weapons: WeaponProperties[]) {
+        this.action = 'weapons';
+        this.weapons = weapons;
+    }
+
     setProperties(properties: Properties) {
         this.action = 'properties';
         this.properties = properties;
+    }
+
+    addWeapon(weapon : WeaponProperties) {
+        if (this.weapons == null) {
+            this.weapons = [];
+        }
+        this.weapons.push(weapon);
     }
 
     setDestroy() {

@@ -76,6 +76,7 @@ class Setup {
         game.load.image('planet-earth', 'assets/planets/earth.png');
         game.load.image('planet-desert', 'assets/planets/desert.png');
         game.load.image('bullet', 'assets/bullets.png');
+        game.load.image('missile', 'assets/missile3.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
         game.load.image('shield', 'assets/shield-1.png');
@@ -83,6 +84,10 @@ class Setup {
         game.load.image('button', 'assets/shield-1.png');
         game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
         game.load.spritesheet('thruster', 'assets/thruster.png', 50, 178);
+        game.forceSingleUpdate = true;
+
+        game.load.image('smoke', 'assets/particles/smoke-puff.png');
+
 
     }
     create() {
@@ -107,6 +112,7 @@ class Setup {
         var button = game.add.button(10, 10, 'button', this.fire, this);
         button.scale.set(1);
         button.fixedToCamera = true;
+
 
 
     }
@@ -210,7 +216,29 @@ class Connection {
         });
     }
 }
-
+//
+// String.prototype.hexEncode = function(){
+//     var hex, i;
+//
+//     var result = "";
+//     for (i=0; i<this.length; i++) {
+//         hex = this.charCodeAt(i).toString(16);
+//         result += ("000"+hex).slice(-4);
+//     }
+//
+//     return result
+// }
+//
+// String.prototype.hexDecode = function(){
+//     var j;
+//     var hexes = this.match(/.{1,4}/g) || [];
+//     var back = "";
+//     for(j = 0; j<hexes.length; j++) {
+//         back += String.fromCharCode(parseInt(hexes[j], 16));
+//     }
+//
+//     return back;
+// }
 
 class MessageTransport {
 
@@ -227,20 +255,60 @@ class MessageTransport {
         this.connection = new Connection(this);
     }
 
+    // b64EncodeUnicode(str) {
+    // return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+    //     return String.fromCharCode('0x' + p1);
+    // }));
+    // }
+
     parse(messageData) {
-        //console.log('MessageTransport::parse');
+        //console.log(this.unpack(messageData));
+        //console.log(LZString.decompress(messageData));
+        //var string = new TextDecoder('utf-8').decode(<ArrayBuffer>messageData);
+        //var string = new TextDecoder('utf-8').decode(<ArrayBuffer>this.unpack(messageData));
         var data = JSON.parse(messageData);
         var message = Serializer.load(data);
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
         // do not handle current's player messages from outside
         this.actionHandler.handleMessage(message);
     }
+    pack(bytes) {
+        var str = "";
+        for(var i = 0; i < bytes.length; i += 2) {
+            var char = bytes[i] << 8;
+            if (bytes[i + 1])
+                char |= bytes[i + 1];
+            str += String.fromCharCode(char);
+        }
+        return str;
+    }
+
+    unpack(str) {
+    var bytes = [];
+    for(var i = 0; i < str.length; i++) {
+        var char = str.charCodeAt(i);
+        bytes.push(char >>> 8);
+        bytes.push(char & 0xFF);
+    }
+    return bytes;
+    }
+
 
     sendMessage(message: Message) {
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
+
         var messageData = JSON.stringify(message.serialize());
+        //var conn = this.connection;
+        //messageData = new TextEncoder('utf-8').encode(messageData);
+        //console.log(this.b64EncodeUnicode(messageData));
+        console.log(messageData);
         this.connection.sendMessage(messageData);
+
+    //    console.log(this.utf8AbFromStr(messageData));
+
     }
+
+
 }
 
 
@@ -280,9 +348,14 @@ class ActionHandler {
         var loc = new Loc();
         loc.set(300,300);
 
+        var p = WeaponProperties.createProjectileTurret();
+        var m = WeaponProperties.createMissileTurret();
         var message = new Message();
         message.setId(playerId);
         message.logIn(loc, Properties.factory());
+        message.addWeapon(p);
+        message.addWeapon(m);
+
         transporter.sendMessage(message);
 
 
@@ -319,6 +392,7 @@ class ActionHandler {
         if (message.action == 'login') {
 
             console.log('ActionHandler::handleMessage - ' + message.id + ' just logged in')
+            console.log(message);
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             //var ship = new Phaser.Sprite(game, 100, 100, 'ship');
             game.add.existing(ship);

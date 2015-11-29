@@ -33,6 +33,7 @@ var Setup = (function () {
         game.load.image('planet-earth', 'assets/planets/earth.png');
         game.load.image('planet-desert', 'assets/planets/desert.png');
         game.load.image('bullet', 'assets/bullets.png');
+        game.load.image('missile', 'assets/missile3.png');
         game.load.image('ship', 'assets/ships/fury.png');
         game.load.image('dust', 'assets/pixel.png');
         game.load.image('shield', 'assets/shield-1.png');
@@ -40,6 +41,8 @@ var Setup = (function () {
         game.load.image('button', 'assets/shield-1.png');
         game.load.spritesheet('explosion', 'assets/explosion.png', 64, 64);
         game.load.spritesheet('thruster', 'assets/thruster.png', 50, 178);
+        game.forceSingleUpdate = true;
+        game.load.image('smoke', 'assets/particles/smoke-puff.png');
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
@@ -146,9 +149,29 @@ var MessageTransport = (function () {
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
         this.actionHandler.handleMessage(message);
     };
+    MessageTransport.prototype.pack = function (bytes) {
+        var str = "";
+        for (var i = 0; i < bytes.length; i += 2) {
+            var char = bytes[i] << 8;
+            if (bytes[i + 1])
+                char |= bytes[i + 1];
+            str += String.fromCharCode(char);
+        }
+        return str;
+    };
+    MessageTransport.prototype.unpack = function (str) {
+        var bytes = [];
+        for (var i = 0; i < str.length; i++) {
+            var char = str.charCodeAt(i);
+            bytes.push(char >>> 8);
+            bytes.push(char & 0xFF);
+        }
+        return bytes;
+    };
     MessageTransport.prototype.sendMessage = function (message) {
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
         var messageData = JSON.stringify(message.serialize());
+        console.log(messageData);
         this.connection.sendMessage(messageData);
     };
     return MessageTransport;
@@ -173,9 +196,13 @@ var ActionHandler = (function () {
         console.log(player);
         var loc = new Loc();
         loc.set(300, 300);
+        var p = WeaponProperties.createProjectileTurret();
+        var m = WeaponProperties.createMissileTurret();
         var message = new Message();
         message.setId(playerId);
         message.logIn(loc, Properties.factory());
+        message.addWeapon(p);
+        message.addWeapon(m);
         transporter.sendMessage(message);
         var loc = new Loc();
         loc.set(400, 400);
@@ -201,6 +228,7 @@ var ActionHandler = (function () {
         console.log('ActionHandler::handleMessage - ' + message.action);
         if (message.action == 'login') {
             console.log('ActionHandler::handleMessage - ' + message.id + ' just logged in');
+            console.log(message);
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
             game.add.existing(ship);
             this.ships.add(ship);
