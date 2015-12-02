@@ -28,10 +28,6 @@
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, target-densitydpi=device-dpi" />
         <link rel="stylesheet" type="text/css" href="css/index.css" />
         <title>Alan</title>
-        <script src="js/phaser.min.js"></script>
-        <script src="js/phaser-debug.js"></script>
-
-
 
         <script type="text/javascript" src="cordova.js"></script>
 
@@ -59,31 +55,29 @@
     </head>
     <body>
 
-        <div id="phaser" style="display:none;"></div>
-
-        <div class="pure" id="startScreen">
-            <form class="pure-form">
-                <fieldset>
-                <input style="margin: 5px; padding: 5px;" type="playerId"  id="playerId" placeholder="Name"><button class="pure-button pure-button-primary" id="login" type="button">
-                      START
-                </button>
-                </fieldset>
-            </form>
-        </div>
-
-
 
         <!-- Include all compiled plugins (below), or include individual files as needed -->
         <script src="built/js/objects/transport.js"></script>
-        <script src="built/js/objects/player.js"></script>
         <script src="built/js/objects/message.js"></script>
-        <script src="built/js/objects/controll.js"></script>
-
-        <script src="built/js/init.js"></script>
-        <script src="built/js/main.js"></script>
-
+        <script src="built/js/objects/ai.js"></script>
         <script type="text/javascript">
-        //    app.initialize();
+
+
+        window.onload = function() {
+            var aiHandler = new AiHandler();
+            transporter = new MessageTransport(aiHandler);
+            var mode = 'right';
+
+            transporter.sendMessage(aiHandler.login(400,300));
+            transporter.sendMessage(aiHandler.move());
+            (function move (i) {
+               setTimeout(function () {
+                  transporter.sendMessage(aiHandler.move());
+                  if (--i) move(i);
+              }, 10000)
+            })(10);
+        }
+
         </script>
     </body>
 </html>

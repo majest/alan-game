@@ -42,10 +42,7 @@ class HPBar {
 
         this.bgbar.x = x;
         this.bgbar.y = y;
-
-
     }
-
 
     set(newValue) {
         if(newValue < 0) newValue = 0;
@@ -98,82 +95,148 @@ class Shield {
 
 }
 
-class WeaponManager {
 
-    weaponProperties: WeaponProperties[];
-    weapons: Group.Weapon[];
-    id: string;
+module Ship {
+
+    export class Broadcast {
+
+        public static Properties(id, properties) {
+            var message = new Message();
+            message.setId(id);
+            message.setProperties(properties);
+            transporter.sendMessage(message);
+        }
+
+        public static Location(id, x, y) {
+           console.log(id + ':Player::moveToPointer');
+           var loc = new Loc();
+           loc.set(x, y);
+           var message = new Message();
+           message.setId(id);
+           message.setDestination(loc);
+           transporter.sendMessage(message);
+        }
 
 
-    constructor(shipId) {
-        this.id = shipId;
+        public static Destroy(id) {
+            var message = new Message();
+            message.setId(id);
+            message.setDestroy();
+            transporter.sendMessage(message);
+        }
+
+        // sends the message to shoot specific ship
+        public static Target(id: string, target: string) {
+            var message = new Message();
+            message.setId(id);
+            message.target = target;
+            message.action = 'target';
+            transporter.sendMessage(message);
+        }
+
+        public static Fire(id) {
+            var message = new Message();
+            message.setId(id);
+            message.action = 'fire';
+            transporter.sendMessage(message);
+        }
+        // public static Location(pointer: any) {
+        //     console.log(this.id + ':Player::moveToPointer');
+        //
+        //     var loc = new Loc();
+        //     loc.set(pointer.worldX, pointer.worldY);
+        //
+        //     var message = new Message();
+        //     message.setId(this.id);
+        //     message.setDestination(loc);
+        //     //message.setLocation(this.getLocation());
+        //     transporter.sendMessage(message);
+        // }
+
     }
 
-    setWeaponProperties(weaponProperties: WeaponProperties[]) {
-        this.weaponProperties = weaponProperties;
-        console.log(this.id + ' SETTING W PROPERTIES' );
-        console.log(weaponProperties);
-        this.createWeapons();
-    }
+    export class Missile extends Phaser.Sprite {
 
-    public getWeapons() : Group.Weapon[] {
-        return this.weapons;
-    }
+        emitter;
 
-    createWeapons() {
+        constructor(game, x, y, key) {
+            super(game, x, y, key);
+            this.create();
+        }
 
+        create() {
+            var emitter = game.add.emitter(200 , 200, 400);
+            emitter.makeParticles('smoke');
+            emitter.setXSpeed(0, 0);
+            emitter.setYSpeed(0, 0);
+            emitter.setAlpha(0.1, 0.4, 30);
+            emitter.gravity = 0;
 
-        for (var k in this.weaponProperties) {
-            var weapon = this.weaponProperties[k];
+            emitter.width = 6;
+            emitter.setScale(1, 2,1,2);
+            emitter.x = this.x;
+            emitter.y = this.y;
+            emitter.setScale(0.1, 0.15, 0.1, 0.15, 8000, Phaser.Easing.Quintic.In);
+            emitter.minParticleScale = 0.05;
+            emitter.maxParticleScale = 0.09;
+            emitter.start(false, 2000, 20);
+            this.emitter = emitter;
+        }
 
-            if (this.weapons == null)  {
-                this.weapons = [];
+        kill() {
+            this.emitter.on = false;
+            return super.kill();
+        }
+
+        update() {
+
+            if (this.alive) {
+                this.emitter.on = true;
+                this.emitter.visible = true;
+                this.emitter.emitX = this.x;
+                this.emitter.emitY = this.y;
+                var weapon = <Weapon>this.parent;
+
+                var targetAngle = game.math.angleBetween(
+                    this.x, this.y,
+                    weapon.target.x, weapon.target.y
+                );
+
+                // Gradually (this.TURN_RATE) aim the missile towards the target angle
+                if (this.rotation !== targetAngle) {
+                    // Calculate difference between the current angle and targetAngle
+                    var delta = targetAngle - this.rotation;
+
+                    // Keep it in range from -180 to 180 to make the most efficient turns.
+                    if (delta > Math.PI) delta -= Math.PI * 2;
+                    if (delta < -Math.PI) delta += Math.PI * 2;
+
+                    if (delta > 0) {
+                        // Turn clockwise
+                        this.angle += weapon.properties.turnRate;
+                    } else {
+                        // Turn counter-clockwise
+                        this.angle -= weapon.properties.turnRate;
+                    }
+
+                    // Just set angle to target angle if they are close
+                    if (Math.abs(delta) < game.math.degToRad(weapon.properties.turnRate)) {
+                        this.rotation = targetAngle;
+                    }
+                }
+
+                // Calculate velocity vector based on this.rotation and this.SPEED
+                this.body.velocity.x = Math.cos(this.rotation) * weapon.properties.speed;
+                this.body.velocity.y = Math.sin(this.rotation) * weapon.properties.speed;
             }
-
-            var group = null;
-
-            if (weapon.type == 'projectile') {
-                group = this.getProjectile(weapon);
-
-            } else if (weapon.type == 'missile') {
-                group = this.getMissile(weapon);
-            }
-
-            this.weapons.push(group);
-
         }
     }
 
-    getProjectile(weapon: WeaponProperties) : Group.Weapon {
-        var bullets = new Group.Weapon(weapon);
-        bullets.enableBody = true;
-        bullets.physicsBodyType = Phaser.Physics.ARCADE;
-        bullets.createMultiple(weapon.multiple, weapon.gfx);
-        bullets.setAll('checkWorldBounds', true);
-        bullets.setAll('outOfBoundsKill', true);
-        var group = game.add.existing(bullets);
-        return bullets;
+    export class Projectile extends Phaser.Sprite {
+
+        update() {
+        }
     }
-
-    getMissile(weapon: WeaponProperties) {
-        var missiles = new Group.Weapon(weapon);
-        missiles.enableBody = true;
-        missiles.physicsBodyType = Phaser.Physics.ARCADE;
-        missiles.createMultiple(weapon.multiple, weapon.gfx);
-
-        //missiles.scale.set(4,4);
-        missiles.setAll('checkWorldBounds', true);
-        missiles.setAll('outOfBoundsKill', true);
-        var group = game.add.existing(missiles);
-        //group.scale.set(0.3,0.3);
-
-        return missiles;
-    }
-
-}
-
-
-module Ship {
 
     export class Ship extends Phaser.Sprite {
 
@@ -222,7 +285,7 @@ module Ship {
         thruster;
         emitter;
 
-        weaponManager;
+        weapons: Weapon[] = [];
 
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
@@ -251,7 +314,6 @@ module Ship {
             this.crosshair.anchor.setTo(0.5,0.65);
             this.crosshair.scale.setTo(1.3,1.4);
             this.crosshair.alpha = 0.4
-
 
 
             this.shield = new Shield(this.x,this.y);
@@ -293,32 +355,13 @@ module Ship {
             this.addChild(this.thruster);
             // game.onPause.add(this.gamePause, this);
             // game.onResume.add(this.gameResume, this);
-            this.weaponManager = new WeaponManager(this.id);
 
             game.stage.backgroundColor = '#03273e';
 
 
   //	Emitters have a center point and a width/height, which extends from their center point to the left/right and up/down
- // var emitter = game.add.emitter(200 , 200, 400);
- //
- //  emitter.makeParticles('smoke');
- //  emitter.setXSpeed(0, 0);
- //  emitter.setYSpeed(0, 0);
- //  // emitter.setRotation(0, 0);
- //  emitter.setAlpha(0.1, 0.4, 30);
- //  // emitter.setScale(0.1, 0.1, 0.1, 0.1, 0);
- //  emitter.gravity = 0;
- //  // emitter.setSize(100,100);
- //
- //  emitter.width = 6;
- //  emitter.setScale(1, 2,1,2);
- //  emitter.x = this.x;
- //  emitter.y = this.y;
- //  emitter.setScale(0.1, 0.15, 0.1, 0.15, 8000, Phaser.Easing.Quintic.In);
- //  emitter.minParticleScale = 0.05;
- //  emitter.maxParticleScale = 0.09;
- //  emitter.start(false, 2000, 20);
- //  this.emitter = emitter;
+
+  //this.addChild(this.emitter);
 
         }
 
@@ -338,8 +381,7 @@ module Ship {
             this.crosshair.x = this.x;
             this.crosshair.y = this.y;
 
-            // this.emitter.emitX = this.x;
-            // this.emitter.emitY = this.y;
+
 
             this.crosshair.rotation = this.crosshair.rotation + 0.01;
             this.shield.update(this.x, this.y);
@@ -354,25 +396,13 @@ module Ship {
                 this.thruster.visible = false;
             }
 
-            var weapons = this.weaponManager.getWeapons();
-
             // do we have any weapons on this ship?
-            if (weapons != null) {
+            if (this.weapons != null && this.target) {
 
-
-                // go through each weapon
-                for (var i in weapons) {
-
-                    var weapon = weapons[i];
-
-
-
-
-                    if (this.firing && this.target) {
-                        this.firingAnim(this.target, weapon);
-                    }
-
-                    this.game.physics.arcade.overlap(weapon, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
+                // fire all weapons
+                for (var i in this.weapons) {
+                    this.firingAnim(this.target, this.weapons[i]);
+                    game.physics.arcade.overlap(this.weapons[i], this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
                 }
             }
 
@@ -389,13 +419,17 @@ module Ship {
             var damage = 0;
 
             if (ship.hasShield()) {
-                damage = bullet.parent.getWeaponProperties().damageShield;
+                damage = bullet.parent.properties.damageShield;
             } else {
-                damage = bullet.parent.getWeaponProperties().damageHull;
+                damage = bullet.parent.properties.damageHull;
             }
 
             ship.takeHit(damage);
             bullet.kill();
+        }
+
+        sendFire() {
+            Broadcast.Fire(this.id);
         }
 
         takeHit(hit) {
@@ -439,15 +473,8 @@ module Ship {
             // or it's ai
             // broadcast destroy
             if (!this.hasHull() && this.alive && (this.id == playerId || this.properties.type == 'ai')) {
-                this.sendDestroy();
+                Broadcast.Destroy(this.id);
             }
-        }
-
-        sendDestroy() {
-            var message = new Message();
-            message.setId(this.id);
-            message.setDestroy();
-            transporter.sendMessage(message);
         }
 
         updateHpBars() {
@@ -470,47 +497,27 @@ module Ship {
         // fires a bullet
         firingAnim(ship, weapon) {
 
-
             // if current time is less than a time + fire duration  - this makes sure we fire only one serie
             // and ship we are shooting at is not us
             // and curretnt ime is more than a next fire - which means it's time to shoot a bullet
             // and number of dead bullets is more than
+            if (weapon.isReady()) {
+                weapon.fire();
 
-            if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && weapon.countDead() > 0)
-            {
-
-                //console.log(this.id + ':Ship::shooting ' + ship.id);
-                // correct the time so we should the next one after firerate
-                this.nextFire = this.game.time.now + this.fireRate;
-
-                // get the first dead bullet
-                var bullet = weapon.getFirstDead();
-
-                bullet.rotation = game.physics.arcade.angleBetween(this, ship);
-                console.log(bullet.rotation);
-                // reset the position the bullet so it looks like it comes out from our ship
-                bullet.reset(this.x - 4, this.y - 4);
-
-                // shoot the bullets towards the target
-                game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);// .moveToPointer(bullet, 300);
             } else {
-
-            }
-
-            if (game.time.now > this.fireDuration && this.firing) {
-                // setting back
-                this.firing = false;
-
                 // make the ship we are shooting at send an update about it's health
-                ship.finishedShooting();
-                console.log(this.id + ':Ship::firingAnim - finished firing');
+                if (weapon.finishedShooting()) {
+                    ship.finishedShooting();
+                }
             }
+
+
         }
 
         // only update properties if we are the owner of the ship.
         finishedShooting() {
             if (this.id == playerId) {
-                this.sendProperties();
+                Broadcast.Properties(this.id, this.properties);
             }
         }
 
@@ -527,12 +534,6 @@ module Ship {
             this.kill();
         }
 
-        sendProperties() {
-            var message = new Message();
-            message.setId(this.id);
-            message.setProperties(this.properties);
-            transporter.sendMessage(message);
-        }
 
         // acquire target - makes the crosshair visible on the ship we have clicked on
         acquireTarget(ship, pointer) {
@@ -551,7 +552,7 @@ module Ship {
 
                 // remove target if is set
                 if (player.ship.hasTarget()) {
-                        player.ship.removeTarget();
+                    player.ship.removeTarget();
                 }
 
                 // set this ship which is targetted on the ship which is targetting - current player
@@ -560,6 +561,10 @@ module Ship {
                 // make the crosshair visible on self
                 this.toggleCrosshair()
             }
+        }
+
+        sendTarget(target) {
+            Broadcast.Target(this.id, target);
         }
 
         // has a target
@@ -584,58 +589,25 @@ module Ship {
             }
         }
 
-        sendLocation(pointer: any) {
-            console.log(this.id + ':Player::moveToPointer');
-
-            var loc = new Loc();
-            loc.set(pointer.worldX, pointer.worldY);
-
-            var message = new Message();
-            message.setId(this.id);
-            message.setDestination(loc);
-            //message.setLocation(this.getLocation());
-            transporter.sendMessage(message);
-        }
-
-        // sends the message to shoot specific ship
-        sendTarget(id: string) {
-            console.log(this.id + ':Ship::sendTarget  - sending target message to: ' + this.id);
-            var message = new Message();
-            message.setId(this.id);
-            message.target = id;
-            message.action = 'target';
-            transporter.sendMessage(message);
-        }
-
         setTarget(target : Ship.Ship) {
             console.log(this.id + ':Ship::setTarget');
 
-            // FIRE!!!
+            for (var i in this.weapons) {
+                var weapon = this.weapons[i];
+                weapon.setTarget(target);
+            }
 
-
-            // SET THE TARGET
-            console.log(target);
             this.target = target;
         }
 
         handleKeys() {
             // handle key action
-            if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id){
+            if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id && this.target){
                 console.log(this.id + ':Ship::handleKeys - Keyboard Firing firing:' + this.firing);
-                this.sendFire();
+                Broadcast.Fire(this.id);
             }
         }
 
-        sendFire() {
-
-            if (!this.firing && playerId == this.id && this.target) {
-                console.log(this.id + ':Ship::sendFire - firing:' + this.firing);
-                var message = new Message();
-                message.setId(this.id);
-                message.action = 'fire';
-                transporter.sendMessage(message);
-            }
-        }
         /**
         * Makes the ship fire the weapon
         * Sets a firing flag so that the anim will know when to trigger
@@ -643,9 +615,12 @@ module Ship {
         fire() {
             /// prevent of triggering the method multiple times
             if (this.target != null && !this.firing) {
+
                 console.log(this.id + ':Ship::fire');
-                this.fireDuration = this.game.time.now + 1000;
-                this.firing = true;
+                for (var i in this.weapons) {
+                    this.weapons[i].makeReady();
+                }
+
             } else {
                 console.log('No target');
             }
@@ -700,12 +675,18 @@ module Ship {
 
                 // set the ship properties like hp/shield
                 this.setProperties(message.properties);
-                this.weaponManager.setWeaponProperties(message.weapons);
+                this.initWeapons(message.weapons);
+
             }
 
         }
 
-
+        initWeapons(weaponProperties) {
+            for (var i in weaponProperties) {
+                var weapon = Weapon.init(this, weaponProperties[i]);
+                this.weapons.push(weapon);
+            }
+        }
 
         move() {
 
@@ -768,8 +749,6 @@ module Ship {
             this.body.drag.set(this.properties.breakingForce);
             this.body.maxVelocity.set(this.properties.speed);
             this.updateHpBars();
-
-
         }
 
         getProperties() : Properties {
@@ -827,25 +806,104 @@ module Ship {
     }
 }
 
-module Group {
 
 
-        export class Weapon extends Phaser.Group {
 
-            weaponProperties : Weapon;
 
-            constructor(weaponProperties) {
+        class Weapon extends Phaser.Group {
+
+            fireDuration = 0;
+            nextFire = 0;
+            properties : WeaponProperties;
+            target;
+            ship;
+            firing;
+
+            constructor(ship, properties) {
                 super(game);
-                this.weaponProperties = weaponProperties;
+                this.ship = ship;
+                console.log(ship);
+                this.properties = properties;
             }
 
-            getWeaponProperties() {
-                return this.weaponProperties;
+            setTarget(target) {
+                this.target = target;
+            }
+
+            public static init(ship: Ship.Ship, properties: WeaponProperties) : Weapon {
+
+                var bullets = new Weapon(ship, properties);
+                bullets.classType = Weapon.getType(properties.type);
+                bullets.enableBody = true;
+                bullets.physicsBodyType = Phaser.Physics.ARCADE;
+                bullets.createMultiple(properties.multiple, properties.gfx);
+                bullets.setAll('checkWorldBounds', true);
+                bullets.setAll('outOfBoundsKill', true);
+                bullets.setAll('lifespan',properties.lifespan);
+                return bullets;
+            }
+
+            public static getType(type) {
+                if (type == 'missile') {
+                    return Ship.Missile;
+                } else if (type == 'projectile') {
+                    return Ship.Projectile
+                }
+            }
+
+
+            fire() {
+
+                // correct the time so we should the next one after firerate
+                this.nextFire = game.time.now + this.properties.fireRate;
+
+                // get the first dead bullet
+                var bullet = this.getFirstDead();
+
+                bullet.rotation = game.physics.arcade.angleBetween(this.ship, this.target);
+
+                // reset the position the bullet so it looks like it comes out from our ship
+                bullet.reset(this.ship.x - 4, this.ship.y - 4);
+
+                // shoot the bullets towards the target
+                game.physics.arcade.moveToXY(bullet, this.target.x, this.target.y, this.properties.speed);
+            }
+
+
+
+            finishedShooting() {
+
+                if (this.firing) {
+                    this.firing = false;
+                    return true;
+                }
+                return false;
+            }
+
+            getProperties() {
+                return this.properties;
+            }
+
+            makeReady() {
+                console.log('--------------');
+                console.log(this.properties.fireDuration);
+                this.fireDuration = game.time.now + this.properties.fireDuration;
+                this.firing = true;
+            }
+
+            isReady() {
+            //    console.log((game.time.now < this.fireDuration) + '-'  + (game.time.now > this.nextFire) + '-' + (this.countDead() > 0));
+                if (game.time.now < this.fireDuration &&  game.time.now > this.nextFire && this.countDead() > 0) {
+                    return true;
+                }
+
+                return false;
             }
 
         }
 
 
+module Group {
         export class Ship extends Phaser.Group {
 
             //ships: Ship.Ship[] = [];

@@ -10,7 +10,7 @@ var Player = (function () {
     Player.prototype.moveToPointer = function (pointer) {
         if (!this.ship || pointer.targetObject != null)
             return;
-        this.ship.sendLocation(pointer);
+        Ship.Broadcast.Location(this.ship.id, pointer.worldX, pointer.worldY);
     };
     Player.prototype.getShip = function () {
         return this.ship;

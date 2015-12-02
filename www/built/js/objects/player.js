@@ -71,59 +71,116 @@ var Shield = (function () {
     };
     return Shield;
 })();
-var WeaponManager = (function () {
-    function WeaponManager(shipId) {
-        this.id = shipId;
-    }
-    WeaponManager.prototype.setWeaponProperties = function (weaponProperties) {
-        this.weaponProperties = weaponProperties;
-        console.log(this.id + ' SETTING W PROPERTIES');
-        console.log(weaponProperties);
-        this.createWeapons();
-    };
-    WeaponManager.prototype.getWeapons = function () {
-        return this.weapons;
-    };
-    WeaponManager.prototype.createWeapons = function () {
-        for (var k in this.weaponProperties) {
-            var weapon = this.weaponProperties[k];
-            if (this.weapons == null) {
-                this.weapons = [];
-            }
-            var group = null;
-            if (weapon.type == 'projectile') {
-                group = this.getProjectile(weapon);
-            }
-            else if (weapon.type == 'missile') {
-                group = this.getMissile(weapon);
-            }
-            this.weapons.push(group);
-        }
-    };
-    WeaponManager.prototype.getProjectile = function (weapon) {
-        var bullets = new Group.Weapon(weapon);
-        bullets.enableBody = true;
-        bullets.physicsBodyType = Phaser.Physics.ARCADE;
-        bullets.createMultiple(weapon.multiple, weapon.gfx);
-        bullets.setAll('checkWorldBounds', true);
-        bullets.setAll('outOfBoundsKill', true);
-        var group = game.add.existing(bullets);
-        return bullets;
-    };
-    WeaponManager.prototype.getMissile = function (weapon) {
-        var missiles = new Group.Weapon(weapon);
-        missiles.enableBody = true;
-        missiles.physicsBodyType = Phaser.Physics.ARCADE;
-        missiles.createMultiple(weapon.multiple, weapon.gfx);
-        missiles.setAll('checkWorldBounds', true);
-        missiles.setAll('outOfBoundsKill', true);
-        var group = game.add.existing(missiles);
-        return missiles;
-    };
-    return WeaponManager;
-})();
 var Ship;
 (function (Ship_1) {
+    var Broadcast = (function () {
+        function Broadcast() {
+        }
+        Broadcast.Properties = function (id, properties) {
+            var message = new Message();
+            message.setId(id);
+            message.setProperties(properties);
+            transporter.sendMessage(message);
+        };
+        Broadcast.Location = function (id, x, y) {
+            console.log(id + ':Player::moveToPointer');
+            var loc = new Loc();
+            loc.set(x, y);
+            var message = new Message();
+            message.setId(id);
+            message.setDestination(loc);
+            transporter.sendMessage(message);
+        };
+        Broadcast.Destroy = function (id) {
+            var message = new Message();
+            message.setId(id);
+            message.setDestroy();
+            transporter.sendMessage(message);
+        };
+        Broadcast.Target = function (id, target) {
+            var message = new Message();
+            message.setId(id);
+            message.target = target;
+            message.action = 'target';
+            transporter.sendMessage(message);
+        };
+        Broadcast.Fire = function (id) {
+            var message = new Message();
+            message.setId(id);
+            message.action = 'fire';
+            transporter.sendMessage(message);
+        };
+        return Broadcast;
+    })();
+    Ship_1.Broadcast = Broadcast;
+    var Missile = (function (_super) {
+        __extends(Missile, _super);
+        function Missile(game, x, y, key) {
+            _super.call(this, game, x, y, key);
+            this.create();
+        }
+        Missile.prototype.create = function () {
+            var emitter = game.add.emitter(200, 200, 400);
+            emitter.makeParticles('smoke');
+            emitter.setXSpeed(0, 0);
+            emitter.setYSpeed(0, 0);
+            emitter.setAlpha(0.1, 0.4, 30);
+            emitter.gravity = 0;
+            emitter.width = 6;
+            emitter.setScale(1, 2, 1, 2);
+            emitter.x = this.x;
+            emitter.y = this.y;
+            emitter.setScale(0.1, 0.15, 0.1, 0.15, 8000, Phaser.Easing.Quintic.In);
+            emitter.minParticleScale = 0.05;
+            emitter.maxParticleScale = 0.09;
+            emitter.start(false, 2000, 20);
+            this.emitter = emitter;
+        };
+        Missile.prototype.kill = function () {
+            this.emitter.on = false;
+            return _super.prototype.kill.call(this);
+        };
+        Missile.prototype.update = function () {
+            if (this.alive) {
+                this.emitter.on = true;
+                this.emitter.visible = true;
+                this.emitter.emitX = this.x;
+                this.emitter.emitY = this.y;
+                var weapon = this.parent;
+                var targetAngle = game.math.angleBetween(this.x, this.y, weapon.target.x, weapon.target.y);
+                if (this.rotation !== targetAngle) {
+                    var delta = targetAngle - this.rotation;
+                    if (delta > Math.PI)
+                        delta -= Math.PI * 2;
+                    if (delta < -Math.PI)
+                        delta += Math.PI * 2;
+                    if (delta > 0) {
+                        this.angle += weapon.properties.turnRate;
+                    }
+                    else {
+                        this.angle -= weapon.properties.turnRate;
+                    }
+                    if (Math.abs(delta) < game.math.degToRad(weapon.properties.turnRate)) {
+                        this.rotation = targetAngle;
+                    }
+                }
+                this.body.velocity.x = Math.cos(this.rotation) * weapon.properties.speed;
+                this.body.velocity.y = Math.sin(this.rotation) * weapon.properties.speed;
+            }
+        };
+        return Missile;
+    })(Phaser.Sprite);
+    Ship_1.Missile = Missile;
+    var Projectile = (function (_super) {
+        __extends(Projectile, _super);
+        function Projectile() {
+            _super.apply(this, arguments);
+        }
+        Projectile.prototype.update = function () {
+        };
+        return Projectile;
+    })(Phaser.Sprite);
+    Ship_1.Projectile = Projectile;
     var Ship = (function (_super) {
         __extends(Ship, _super);
         function Ship(game, x, y, id) {
@@ -134,6 +191,7 @@ var Ship;
             this.target = null;
             this.firing = false;
             this.healthPercentage = 100;
+            this.weapons = [];
             game.physics.enable(this, Phaser.Physics.ARCADE);
             this.body.bounce.x = 0.5;
             this.body.bounce.y = 0.5;
@@ -168,7 +226,6 @@ var Ship;
             this.thruster.animations.play('thruster', 30, true);
             this.thruster.angle = -90;
             this.addChild(this.thruster);
-            this.weaponManager = new WeaponManager(this.id);
             game.stage.backgroundColor = '#03273e';
         }
         Ship.prototype.gamePause = function () {
@@ -194,14 +251,10 @@ var Ship;
             else if (this.destination == null && this.thruster.visible) {
                 this.thruster.visible = false;
             }
-            var weapons = this.weaponManager.getWeapons();
-            if (weapons != null) {
-                for (var i in weapons) {
-                    var weapon = weapons[i];
-                    if (this.firing && this.target) {
-                        this.firingAnim(this.target, weapon);
-                    }
-                    this.game.physics.arcade.overlap(weapon, this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
+            if (this.weapons != null && this.target) {
+                for (var i in this.weapons) {
+                    this.firingAnim(this.target, this.weapons[i]);
+                    game.physics.arcade.overlap(this.weapons[i], this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
                 }
             }
             this.moveToLocation();
@@ -211,13 +264,16 @@ var Ship;
                 return;
             var damage = 0;
             if (ship.hasShield()) {
-                damage = bullet.parent.getWeaponProperties().damageShield;
+                damage = bullet.parent.properties.damageShield;
             }
             else {
-                damage = bullet.parent.getWeaponProperties().damageHull;
+                damage = bullet.parent.properties.damageHull;
             }
             ship.takeHit(damage);
             bullet.kill();
+        };
+        Ship.prototype.sendFire = function () {
+            Broadcast.Fire(this.id);
         };
         Ship.prototype.takeHit = function (hit) {
             if (this.hasShield()) {
@@ -242,14 +298,8 @@ var Ship;
                 this.hullHpBar.set(this.properties.getHullPercentage());
             }
             if (!this.hasHull() && this.alive && (this.id == playerId || this.properties.type == 'ai')) {
-                this.sendDestroy();
+                Broadcast.Destroy(this.id);
             }
-        };
-        Ship.prototype.sendDestroy = function () {
-            var message = new Message();
-            message.setId(this.id);
-            message.setDestroy();
-            transporter.sendMessage(message);
         };
         Ship.prototype.updateHpBars = function () {
             this.hullHpBar.set(this.properties.getHullPercentage());
@@ -266,25 +316,18 @@ var Ship;
             }
         };
         Ship.prototype.firingAnim = function (ship, weapon) {
-            if (this.game.time.now < this.fireDuration && ship.id != this.id && this.game.time.now > this.nextFire && weapon.countDead() > 0) {
-                this.nextFire = this.game.time.now + this.fireRate;
-                var bullet = weapon.getFirstDead();
-                bullet.rotation = game.physics.arcade.angleBetween(this, ship);
-                console.log(bullet.rotation);
-                bullet.reset(this.x - 4, this.y - 4);
-                game.physics.arcade.moveToXY(bullet, ship.x, ship.y, 300);
+            if (weapon.isReady()) {
+                weapon.fire();
             }
             else {
-            }
-            if (game.time.now > this.fireDuration && this.firing) {
-                this.firing = false;
-                ship.finishedShooting();
-                console.log(this.id + ':Ship::firingAnim - finished firing');
+                if (weapon.finishedShooting()) {
+                    ship.finishedShooting();
+                }
             }
         };
         Ship.prototype.finishedShooting = function () {
             if (this.id == playerId) {
-                this.sendProperties();
+                Broadcast.Properties(this.id, this.properties);
             }
         };
         Ship.prototype.die = function () {
@@ -298,12 +341,6 @@ var Ship;
             this.name.destroy();
             this.kill();
         };
-        Ship.prototype.sendProperties = function () {
-            var message = new Message();
-            message.setId(this.id);
-            message.setProperties(this.properties);
-            transporter.sendMessage(message);
-        };
         Ship.prototype.acquireTarget = function (ship, pointer) {
             if (ship != null && ship.id != playerId) {
                 if (this.target != null && this.target.id == ship.id) {
@@ -316,6 +353,9 @@ var Ship;
                 player.ship.sendTarget(this.id);
                 this.toggleCrosshair();
             }
+        };
+        Ship.prototype.sendTarget = function (target) {
+            Broadcast.Target(this.id, target);
         };
         Ship.prototype.hasTarget = function () {
             if (this.target) {
@@ -335,48 +375,26 @@ var Ship;
                 this.crosshair.visible = true;
             }
         };
-        Ship.prototype.sendLocation = function (pointer) {
-            console.log(this.id + ':Player::moveToPointer');
-            var loc = new Loc();
-            loc.set(pointer.worldX, pointer.worldY);
-            var message = new Message();
-            message.setId(this.id);
-            message.setDestination(loc);
-            transporter.sendMessage(message);
-        };
-        Ship.prototype.sendTarget = function (id) {
-            console.log(this.id + ':Ship::sendTarget  - sending target message to: ' + this.id);
-            var message = new Message();
-            message.setId(this.id);
-            message.target = id;
-            message.action = 'target';
-            transporter.sendMessage(message);
-        };
         Ship.prototype.setTarget = function (target) {
             console.log(this.id + ':Ship::setTarget');
-            console.log(target);
+            for (var i in this.weapons) {
+                var weapon = this.weapons[i];
+                weapon.setTarget(target);
+            }
             this.target = target;
         };
         Ship.prototype.handleKeys = function () {
-            if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id) {
+            if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !this.firing && playerId == this.id && this.target) {
                 console.log(this.id + ':Ship::handleKeys - Keyboard Firing firing:' + this.firing);
-                this.sendFire();
-            }
-        };
-        Ship.prototype.sendFire = function () {
-            if (!this.firing && playerId == this.id && this.target) {
-                console.log(this.id + ':Ship::sendFire - firing:' + this.firing);
-                var message = new Message();
-                message.setId(this.id);
-                message.action = 'fire';
-                transporter.sendMessage(message);
+                Broadcast.Fire(this.id);
             }
         };
         Ship.prototype.fire = function () {
             if (this.target != null && !this.firing) {
                 console.log(this.id + ':Ship::fire');
-                this.fireDuration = this.game.time.now + 1000;
-                this.firing = true;
+                for (var i in this.weapons) {
+                    this.weapons[i].makeReady();
+                }
             }
             else {
                 console.log('No target');
@@ -412,7 +430,13 @@ var Ship;
                 console.log(message);
                 console.log(this.id + ':Ship.handleMessage - Setting ship properties');
                 this.setProperties(message.properties);
-                this.weaponManager.setWeaponProperties(message.weapons);
+                this.initWeapons(message.weapons);
+            }
+        };
+        Ship.prototype.initWeapons = function (weaponProperties) {
+            for (var i in weaponProperties) {
+                var weapon = Weapon.init(this, weaponProperties[i]);
+                this.weapons.push(weapon);
             }
         };
         Ship.prototype.move = function () {
@@ -497,20 +521,71 @@ var Ship;
     })(Phaser.Sprite);
     Ship_1.Ship = Ship;
 })(Ship || (Ship = {}));
+var Weapon = (function (_super) {
+    __extends(Weapon, _super);
+    function Weapon(ship, properties) {
+        _super.call(this, game);
+        this.fireDuration = 0;
+        this.nextFire = 0;
+        this.ship = ship;
+        console.log(ship);
+        this.properties = properties;
+    }
+    Weapon.prototype.setTarget = function (target) {
+        this.target = target;
+    };
+    Weapon.init = function (ship, properties) {
+        var bullets = new Weapon(ship, properties);
+        bullets.classType = Weapon.getType(properties.type);
+        bullets.enableBody = true;
+        bullets.physicsBodyType = Phaser.Physics.ARCADE;
+        bullets.createMultiple(properties.multiple, properties.gfx);
+        bullets.setAll('checkWorldBounds', true);
+        bullets.setAll('outOfBoundsKill', true);
+        bullets.setAll('lifespan', properties.lifespan);
+        return bullets;
+    };
+    Weapon.getType = function (type) {
+        if (type == 'missile') {
+            return Ship.Missile;
+        }
+        else if (type == 'projectile') {
+            return Ship.Projectile;
+        }
+    };
+    Weapon.prototype.fire = function () {
+        this.nextFire = game.time.now + this.properties.fireRate;
+        var bullet = this.getFirstDead();
+        bullet.rotation = game.physics.arcade.angleBetween(this.ship, this.target);
+        bullet.reset(this.ship.x - 4, this.ship.y - 4);
+        game.physics.arcade.moveToXY(bullet, this.target.x, this.target.y, this.properties.speed);
+    };
+    Weapon.prototype.finishedShooting = function () {
+        if (this.firing) {
+            this.firing = false;
+            return true;
+        }
+        return false;
+    };
+    Weapon.prototype.getProperties = function () {
+        return this.properties;
+    };
+    Weapon.prototype.makeReady = function () {
+        console.log('--------------');
+        console.log(this.properties.fireDuration);
+        this.fireDuration = game.time.now + this.properties.fireDuration;
+        this.firing = true;
+    };
+    Weapon.prototype.isReady = function () {
+        if (game.time.now < this.fireDuration && game.time.now > this.nextFire && this.countDead() > 0) {
+            return true;
+        }
+        return false;
+    };
+    return Weapon;
+})(Phaser.Group);
 var Group;
 (function (Group) {
-    var Weapon = (function (_super) {
-        __extends(Weapon, _super);
-        function Weapon(weaponProperties) {
-            _super.call(this, game);
-            this.weaponProperties = weaponProperties;
-        }
-        Weapon.prototype.getWeaponProperties = function () {
-            return this.weaponProperties;
-        };
-        return Weapon;
-    })(Phaser.Group);
-    Group.Weapon = Weapon;
     var Ship = (function (_super) {
         __extends(Ship, _super);
         function Ship() {

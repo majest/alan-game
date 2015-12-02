@@ -100,7 +100,16 @@ class WeaponProperties extends Serializer {
     public type: string;
     public gfx: string;
     public range: number;
+    public lifespan: number;
     public multiple: number;
+    public tracking: boolean;
+    public speed: number;
+    public turnRate: number;
+    // how long firing should happen
+    public fireDuration: number;
+
+    // how often it should fire
+    public fireRate: number;
 
     public static createProjectileTurret(): WeaponProperties {
         var weapon = new WeaponProperties();
@@ -111,6 +120,12 @@ class WeaponProperties extends Serializer {
         weapon.range = 10;
         weapon.multiple = 10
         weapon.gfx = 'bullet';
+        weapon.fireRate = 100;
+        weapon.fireDuration = 500;
+        weapon.lifespan = 1000;
+        weapon.tracking = false;
+        weapon.speed = 300;
+        weapon.turnRate = 0;
         return weapon;
     }
 
@@ -123,6 +138,12 @@ class WeaponProperties extends Serializer {
         weapon.gfx = 'missile';
         weapon.range = 15;
         weapon.multiple = 1;
+        weapon.fireRate = 1000;
+        weapon.fireDuration = 1100;
+        weapon.lifespan = 3000;
+        weapon.tracking = true;
+        weapon.speed = 100;
+        weapon.turnRate = 5;
         return weapon;
     }
 }

@@ -23,7 +23,7 @@ class Player   {
         // ignore the movemenet if we are clicking on another sprite
         if (!this.ship || pointer.targetObject != null) return;
 
-        this.ship.sendLocation(pointer);
+        Ship.Broadcast.Location(this.ship.id, pointer.worldX, pointer.worldY);
         // set the destination
 
     }

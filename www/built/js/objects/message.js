@@ -102,6 +102,12 @@ var WeaponProperties = (function (_super) {
         weapon.range = 10;
         weapon.multiple = 10;
         weapon.gfx = 'bullet';
+        weapon.fireRate = 100;
+        weapon.fireDuration = 500;
+        weapon.lifespan = 1000;
+        weapon.tracking = false;
+        weapon.speed = 300;
+        weapon.turnRate = 0;
         return weapon;
     };
     WeaponProperties.createMissileTurret = function () {
@@ -113,6 +119,12 @@ var WeaponProperties = (function (_super) {
         weapon.gfx = 'missile';
         weapon.range = 15;
         weapon.multiple = 1;
+        weapon.fireRate = 1000;
+        weapon.fireDuration = 1100;
+        weapon.lifespan = 3000;
+        weapon.tracking = true;
+        weapon.speed = 100;
+        weapon.turnRate = 5;
         return weapon;
     };
     return WeaponProperties;
