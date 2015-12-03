@@ -3,6 +3,7 @@ var Connection = (function () {
         if (window['WebSocket']) {
             console.log('Connecting');
             this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
+            this.conn.binaryType = 'blob';
             this.conn.onclose = function (evt) {
                 console.log('Connection closed');
             };
@@ -38,34 +39,13 @@ var MessageTransport = (function () {
         this.connection = new Connection(this);
     };
     MessageTransport.prototype.parse = function (messageData) {
-        var data = JSON.parse(messageData);
-        var message = Serializer.load(data);
+        var message = Serializer.load(JSON.parse(messageData));
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
         this.actionHandler.handleMessage(message);
-    };
-    MessageTransport.prototype.pack = function (bytes) {
-        var str = "";
-        for (var i = 0; i < bytes.length; i += 2) {
-            var char = bytes[i] << 8;
-            if (bytes[i + 1])
-                char |= bytes[i + 1];
-            str += String.fromCharCode(char);
-        }
-        return str;
-    };
-    MessageTransport.prototype.unpack = function (str) {
-        var bytes = [];
-        for (var i = 0; i < str.length; i++) {
-            var char = str.charCodeAt(i);
-            bytes.push(char >>> 8);
-            bytes.push(char & 0xFF);
-        }
-        return bytes;
     };
     MessageTransport.prototype.sendMessage = function (message) {
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
         var messageData = JSON.stringify(message.serialize());
-        console.log(messageData);
         this.connection.sendMessage(messageData);
     };
     return MessageTransport;

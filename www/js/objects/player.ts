@@ -98,6 +98,9 @@ class Shield {
 
 module Ship {
 
+
+
+
     export class Broadcast {
 
         public static Properties(id, properties) {
@@ -153,6 +156,42 @@ module Ship {
         //     transporter.sendMessage(message);
         // }
 
+    }
+
+    export class WarpDrive {
+
+        ship;
+        properties;
+        warpDestination: Object;
+
+        constructor(ship, itemProperties) {
+            this.ship = ship;
+            this.create();
+            this.itemProperties = itemProperties;
+        }
+
+        create() {
+
+
+            var button2 = game.add.button(10, 100, 'button', this.setWarpDestination, this);
+            button2.scale.set(0.8);
+            button2.fixedToCamera = true;
+
+        }
+
+        setWarpDestination() {
+            this.warpDestination = {"x" : 10000, "y" : 400};
+            this.ship.body.maxVelocity.set(this.itemProperties.modSpeed);
+        }
+        //
+        warp() {
+
+            if (!this.warpDestination) return;
+
+            if (!this.ship.moveToLocation(this.warpDestination.x, this.warpDestination.y, this.itemProperties.modSpeed)) {
+                this.warpDestination = null;
+            }
+        }
     }
 
     export class Missile extends Phaser.Sprite {
@@ -234,8 +273,6 @@ module Ship {
 
     export class Projectile extends Phaser.Sprite {
 
-        update() {
-        }
     }
 
     export class Ship extends Phaser.Sprite {
@@ -286,6 +323,7 @@ module Ship {
         emitter;
 
         weapons: Weapon[] = [];
+        warpDrive: WarpDrive;
 
         constructor(game: Phaser.Game, x: number, y: number, id: string) {
             super(game, x, y, 'ship', 0);
@@ -358,6 +396,7 @@ module Ship {
 
             game.stage.backgroundColor = '#03273e';
 
+            this.warpDrive = new WarpDrive(this, ItemProperties.createWarpDrive());
 
   //	Emitters have a center point and a width/height, which extends from their center point to the left/right and up/down
 
@@ -372,6 +411,7 @@ module Ship {
         gameResume() {
             console.log('resume');
         }
+
 
         update() {
 
@@ -406,7 +446,8 @@ module Ship {
                 }
             }
 
-            this.moveToLocation();
+            this.warpDrive.warp();
+            this.move();
         }
 
         bulletCollisionHandler(bullet, ship) {
@@ -690,18 +731,14 @@ module Ship {
 
         move() {
 
-            // calcualte distance to target
-            var distanceToTarget: number = parseFloat(this.game.physics.arcade.distanceToXY(this, this.destination.x, this.destination.y).toFixed(2));
+            if (!this.destination) return;
 
-            // finish processing the message once we have reached the target
-            if (distanceToTarget < 8.0) {
+            if (!this.moveToLocation(this.destination.x, this.destination.y, this.properties.speed)) {
                 this.destination = null;
-            } else {
-                return this.game.physics.arcade.moveToXY(this, this.destination.x, this.destination.y, this.properties.speed);
             }
         }
 
-        rotationSpeed(rotation) {
+        rotate(rotation, speed) {
 
             if (rotation && this.rotation !== rotation) {
 
@@ -728,19 +765,22 @@ module Ship {
                 }
             }
 
-            this.body.velocity.x = Math.cos(this.rotation) * this.properties.speed
-            this.body.velocity.y = Math.sin(this.rotation) * this.properties.speed
+            this.body.velocity.x = Math.cos(this.rotation) * speed;
+            this.body.velocity.y = Math.sin(this.rotation) * speed;
         }
 
         /**
         * If destination is present initiate the movement
         */
-        moveToLocation() {
-            if (!this.destination) {
-                return;
+        moveToLocation(x, y, speed) {
+
+            // finish processing the message once we have reached the target
+            if (parseFloat(this.game.physics.arcade.distanceToXY(this, x, y).toFixed(2)) < 8.0) {
+                return false;
             }
 
-            this.rotationSpeed(this.move())
+            this.rotate(this.game.physics.arcade.moveToXY(this, x, y, speed), speed);
+            return true;
         }
 
         setProperties(properties: Properties) {

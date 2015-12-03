@@ -35,6 +35,7 @@ var Setup = (function () {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('missile', 'assets/missile3.png');
         game.load.image('ship', 'assets/ships/fury.png');
+        game.load.image('spacestation1', 'assets/spacestations/spartanm.png');
         game.load.image('dust', 'assets/pixel.png');
         game.load.image('shield', 'assets/shield-1.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
@@ -46,7 +47,6 @@ var Setup = (function () {
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
-        game.plugins.add(Phaser.Plugin.Debug);
         game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         game.physics.startSystem(Phaser.Physics.ARCADE);
         game.world.setBounds(0, 0, 20000000, 20000000);
@@ -57,12 +57,8 @@ var Setup = (function () {
         transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
-        var button = game.add.button(10, 10, 'button', this.fire, this);
-        button.scale.set(1);
-        button.fixedToCamera = true;
     };
     Setup.prototype.fire = function () {
-        Ship.Broadcast.Fire(playerId);
     };
     Setup.prototype.update = function () {
         var groupOfShips = this.actionHandler.getUpdateGroups();
@@ -86,11 +82,14 @@ var Background = (function () {
         this.space2.fixedToCamera = true;
         this.space2.alpha = 0.5;
         var planet = game.add.sprite(500, 400, "planet-earth");
-        planet.scale.set(0.4);
+        planet.scale.set(1);
         planet.anchor.setTo(0.5, 0.5);
-        var planet = game.add.sprite(1500, 600, "planet-desert");
-        planet.scale.set(0.3);
+        var planet = game.add.sprite(100000, 600, "planet-desert");
+        planet.scale.set(0.7);
         planet.anchor.setTo(0.5, 0.5);
+        var ss = game.add.sprite(1800, 400, "spacestation1");
+        ss.scale.set(0.5);
+        ss.anchor.setTo(0.5, 0.5);
     }
     Background.prototype.update = function (player) {
         if (!game.camera.atLimit.x) {
@@ -123,22 +122,15 @@ var ActionHandler = (function () {
         player = new Player();
         console.log(player);
         var loc = new Loc();
-        loc.set(300, 300);
+        loc.set(1400, 400);
         var p = WeaponProperties.createProjectileTurret();
         var m = WeaponProperties.createMissileTurret();
+        var wd = ItemProperties.createWarpDrive();
         var message = new Message();
         message.setId(playerId);
         message.logIn(loc, Properties.factory());
         message.addWeapon(p);
         message.addWeapon(m);
-        transporter.sendMessage(message);
-    };
-    ActionHandler.prototype.createAi = function () {
-        var loc = new Loc();
-        loc.set(400, 400);
-        var message = new Message();
-        message.setId('DUMMY');
-        message.addPlayer(loc, Properties.factory('ai'));
         transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {

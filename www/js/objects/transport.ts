@@ -9,7 +9,7 @@ class Connection {
         if (window['WebSocket']) {
             console.log('Connecting');
             this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
-
+            this.conn.binaryType = 'blob';
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');
             }
@@ -62,51 +62,22 @@ class MessageTransport {
     // }
 
     parse(messageData) {
-        //console.log(this.unpack(messageData));
-        //console.log(LZString.decompress(messageData));
-        //var string = new TextDecoder('utf-8').decode(<ArrayBuffer>messageData);
-        //var string = new TextDecoder('utf-8').decode(<ArrayBuffer>this.unpack(messageData));
-        var data = JSON.parse(messageData);
-        var message = Serializer.load(data);
+        var message = Serializer.load(JSON.parse(messageData));
         console.log('MessageTransport::parse - received message: ' + message.action + ' for ' + message.id);
         // do not handle current's player messages from outside
         this.actionHandler.handleMessage(message);
     }
-    pack(bytes) {
-        var str = "";
-        for(var i = 0; i < bytes.length; i += 2) {
-            var char = bytes[i] << 8;
-            if (bytes[i + 1])
-                char |= bytes[i + 1];
-            str += String.fromCharCode(char);
-        }
-        return str;
-    }
 
-    unpack(str) {
-    var bytes = [];
-    for(var i = 0; i < str.length; i++) {
-        var char = str.charCodeAt(i);
-        bytes.push(char >>> 8);
-        bytes.push(char & 0xFF);
-    }
-    return bytes;
-    }
 
 
     sendMessage(message: Message) {
         console.log('MessageTransport::sendMessage - ' + message.action + ' to ' + message.id);
-
         var messageData = JSON.stringify(message.serialize());
-        //var conn = this.connection;
-        //messageData = new TextEncoder('utf-8').encode(messageData);
-        //console.log(this.b64EncodeUnicode(messageData));
-        console.log(messageData);
+        //var l = atob(messageData);
         this.connection.sendMessage(messageData);
 
-    //    console.log(this.utf8AbFromStr(messageData));
-
     }
+
 
 
 }

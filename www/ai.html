@@ -68,14 +68,26 @@
             transporter = new MessageTransport(aiHandler);
             var mode = 'right';
 
-            transporter.sendMessage(aiHandler.login(400,300));
-            transporter.sendMessage(aiHandler.move());
+            transporter.sendMessage(aiHandler.login('dummy',500,500));
+            transporter.sendMessage(aiHandler.move('dummy',500,500, 1000,500));
+
+            transporter.sendMessage(aiHandler.login('dummy2',500,600));
+            transporter.sendMessage(aiHandler.move('dummy2',500,600, 1000,600));
+
             (function move (i) {
                setTimeout(function () {
-                  transporter.sendMessage(aiHandler.move());
+                  transporter.sendMessage(aiHandler.move('dummy',500,500, 1000,500));
                   if (--i) move(i);
               }, 10000)
             })(10);
+
+            (function move2 (i) {
+               setTimeout(function () {
+                  transporter.sendMessage(aiHandler.move('dummy2',500,600, 1000,600));
+                  if (--i) move2(i);
+              }, 10000)
+            })(10);
+
         }
 
         </script>

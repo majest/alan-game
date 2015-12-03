@@ -113,6 +113,31 @@ var Ship;
         return Broadcast;
     })();
     Ship_1.Broadcast = Broadcast;
+    var WarpDrive = (function () {
+        function WarpDrive(ship, itemProperties) {
+            this.ship = ship;
+            this.create();
+            this.itemProperties = itemProperties;
+        }
+        WarpDrive.prototype.create = function () {
+            var button2 = game.add.button(10, 100, 'button', this.setWarpDestination, this);
+            button2.scale.set(0.8);
+            button2.fixedToCamera = true;
+        };
+        WarpDrive.prototype.setWarpDestination = function () {
+            this.warpDestination = { "x": 10000, "y": 400 };
+            this.ship.body.maxVelocity.set(this.itemProperties.modSpeed);
+        };
+        WarpDrive.prototype.warp = function () {
+            if (!this.warpDestination)
+                return;
+            if (!this.ship.moveToLocation(this.warpDestination.x, this.warpDestination.y, this.itemProperties.modSpeed)) {
+                this.warpDestination = null;
+            }
+        };
+        return WarpDrive;
+    })();
+    Ship_1.WarpDrive = WarpDrive;
     var Missile = (function (_super) {
         __extends(Missile, _super);
         function Missile(game, x, y, key) {
@@ -176,8 +201,6 @@ var Ship;
         function Projectile() {
             _super.apply(this, arguments);
         }
-        Projectile.prototype.update = function () {
-        };
         return Projectile;
     })(Phaser.Sprite);
     Ship_1.Projectile = Projectile;
@@ -227,6 +250,7 @@ var Ship;
             this.thruster.angle = -90;
             this.addChild(this.thruster);
             game.stage.backgroundColor = '#03273e';
+            this.warpDrive = new WarpDrive(this, ItemProperties.createWarpDrive());
         }
         Ship.prototype.gamePause = function () {
             console.log('pause');
@@ -257,7 +281,8 @@ var Ship;
                     game.physics.arcade.overlap(this.weapons[i], this.actionHandler.getShips(), this.bulletCollisionHandler, null, this);
                 }
             }
-            this.moveToLocation();
+            this.warpDrive.warp();
+            this.move();
         };
         Ship.prototype.bulletCollisionHandler = function (bullet, ship) {
             if (ship.id == this.id)
@@ -440,15 +465,13 @@ var Ship;
             }
         };
         Ship.prototype.move = function () {
-            var distanceToTarget = parseFloat(this.game.physics.arcade.distanceToXY(this, this.destination.x, this.destination.y).toFixed(2));
-            if (distanceToTarget < 8.0) {
+            if (!this.destination)
+                return;
+            if (!this.moveToLocation(this.destination.x, this.destination.y, this.properties.speed)) {
                 this.destination = null;
             }
-            else {
-                return this.game.physics.arcade.moveToXY(this, this.destination.x, this.destination.y, this.properties.speed);
-            }
         };
-        Ship.prototype.rotationSpeed = function (rotation) {
+        Ship.prototype.rotate = function (rotation, speed) {
             if (rotation && this.rotation !== rotation) {
                 var delta = rotation - this.rotation;
                 if (delta > Math.PI)
@@ -467,14 +490,15 @@ var Ship;
                     this.rotation = rotation;
                 }
             }
-            this.body.velocity.x = Math.cos(this.rotation) * this.properties.speed;
-            this.body.velocity.y = Math.sin(this.rotation) * this.properties.speed;
+            this.body.velocity.x = Math.cos(this.rotation) * speed;
+            this.body.velocity.y = Math.sin(this.rotation) * speed;
         };
-        Ship.prototype.moveToLocation = function () {
-            if (!this.destination) {
-                return;
+        Ship.prototype.moveToLocation = function (x, y, speed) {
+            if (parseFloat(this.game.physics.arcade.distanceToXY(this, x, y).toFixed(2)) < 8.0) {
+                return false;
             }
-            this.rotationSpeed(this.move());
+            this.rotate(this.game.physics.arcade.moveToXY(this, x, y, speed), speed);
+            return true;
         };
         Ship.prototype.setProperties = function (properties) {
             console.log(this.id + 'Ship::setProperties');

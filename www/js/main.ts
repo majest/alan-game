@@ -50,6 +50,9 @@ class Game {
 
 }
 
+interface A extends Phaser {
+  Plugin: any;
+}
 
 class Setup {
 
@@ -82,6 +85,9 @@ class Setup {
         game.load.image('bullet', 'assets/bullets.png');
         game.load.image('missile', 'assets/missile3.png');
         game.load.image('ship', 'assets/ships/fury.png');
+
+        game.load.image('spacestation1', 'assets/spacestations/spartanm.png');
+
         game.load.image('dust', 'assets/pixel.png');
         game.load.image('shield', 'assets/shield-1.png');
         game.load.image('crosshair', 'assets/crosshair2.png');
@@ -97,7 +103,7 @@ class Setup {
     create() {
 
         console.log('Creating world');
-        game.plugins.add(Phaser.Plugin.Debug);
+    //    game.plugins.add(Phaser.Plugin.Debug);
         game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         game.physics.startSystem(Phaser.Physics.ARCADE);
         game.world.setBounds(0, 0, 20000000, 20000000);
@@ -113,14 +119,14 @@ class Setup {
         this.actionHandler.createPlayer();
         this.ready = true;
 
-        var button = game.add.button(10, 10, 'button', this.fire, this);
-        button.scale.set(1);
-        button.fixedToCamera = true;
+        // var button = game.add.button(10, 10, 'button', this.fire, this);
+        // button.scale.set(0.8);
+        // button.fixedToCamera = true;
     }
 
 
     fire() {
-        Ship.Broadcast.Fire(playerId);
+    //    Ship.Broadcast.Fire(playerId);
     }
 
     //update the state
@@ -158,11 +164,15 @@ class Background {
         this.space2.alpha = 0.5;
 
         var planet = game.add.sprite(500, 400, "planet-earth");
-        planet.scale.set(0.4);
+        planet.scale.set(1);
         planet.anchor.setTo(0.5, 0.5);
-        var planet = game.add.sprite(1500, 600, "planet-desert");
-        planet.scale.set(0.3);
+        var planet = game.add.sprite(100000, 600, "planet-desert");
+        planet.scale.set(0.7);
         planet.anchor.setTo(0.5, 0.5);
+
+        var ss = game.add.sprite(1800, 400, "spacestation1");
+        ss.scale.set(0.5);
+        ss.anchor.setTo(0.5, 0.5);
         //planet.scale.set(scale);
     }
 
@@ -238,26 +248,20 @@ class ActionHandler implements TransportHandler{
         console.log(player);
 
         var loc = new Loc();
-        loc.set(300,300);
+        loc.set(1400,400);
 
         var p = WeaponProperties.createProjectileTurret();
         var m = WeaponProperties.createMissileTurret();
+        var wd = ItemProperties.createWarpDrive();
         var message = new Message();
         message.setId(playerId);
         message.logIn(loc, Properties.factory());
         message.addWeapon(p);
         message.addWeapon(m);
+        //message.addItem(wd);
         transporter.sendMessage(message);
     }
 
-    createAi() {
-        var loc = new Loc();
-        loc.set(400,400);
-        var message = new Message();
-        message.setId('DUMMY');
-        message.addPlayer(loc, Properties.factory('ai'));
-        transporter.sendMessage(message);
-    }
 
     broadCast() {
         console.log('ActionHandler::broadCast');

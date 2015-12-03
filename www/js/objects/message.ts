@@ -91,6 +91,21 @@ class Serializer  {
     }
 }
 
+class ItemProperties extends Serializer {
+        public name: string;
+        public modDamageHull: number = 0;
+        public modDamageShield: number = 0;
+        public modSpeed: number = 0;
+        public type: string;
+
+        public static createWarpDrive() {
+            var ip = new ItemProperties();
+            ip.name = 'Warp Drive Mk1';
+            ip.modSpeed = 500;
+            ip.type = "warpDrive";
+            return ip;
+        }
+}
 
 class WeaponProperties extends Serializer {
 
@@ -208,8 +223,6 @@ class Properties extends Serializer {
         properties.maxHull = 140;
         properties.maxShield = 250;
         properties.type = type;
-
-
         return properties;
     }
 }
@@ -224,9 +237,24 @@ class Message  extends Serializer {
     public properties: Properties;
     public target: string;
     public weapons: WeaponProperties[];
+    public items: ItemProperties[];
 
     public setId(id) {
         this.id = id;
+    }
+
+    addItem(item : ItemProperties) {
+        if (this.items == null) {
+            this.items = [];
+        }
+        this.items.push(item);
+    }
+
+    addWeapon(weapon : WeaponProperties) {
+        if (this.weapons == null) {
+            this.weapons = [];
+        }
+        this.weapons.push(weapon);
     }
 
     addPlayer(location: Loc, properties: Properties) {
@@ -266,12 +294,6 @@ class Message  extends Serializer {
         this.properties = properties;
     }
 
-    addWeapon(weapon : WeaponProperties) {
-        if (this.weapons == null) {
-            this.weapons = [];
-        }
-        this.weapons.push(weapon);
-    }
 
     setDestroy() {
         this.action = 'destroy';

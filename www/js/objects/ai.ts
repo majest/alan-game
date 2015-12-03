@@ -8,34 +8,34 @@ class AiHandler implements TransportHandler {
 
 
 
-    destination(x, y) {
+    destination(id, x, y) {
         console.log('destination');
         var m = new Message();
         var l = new Loc();
-        m.setId('DUMMY');
+        m.setId(id);
         l.set(x,y);
         m.setDestination(l);
         return m;
     }
 
 
-    move() {
+    move(id, x1,y1,x2,y2) {
         if (this.mode == 'right') {
             this.mode = 'left';
-            return this.destination(300,1000);
+            return this.destination(id, x1,y1);
 
         } else {
             this.mode = 'right';
-            return this.destination(300,300);
+            return this.destination(id, x2,y2);
         }
     }
 
-    login(x,y) {
+    login(id, x,y) {
         console.log('destination');
         var m = new Message();
         var l = new Loc();
         l.set(x,y);
-        m.setId('DUMMY');
+        m.setId(id);
         m.addPlayer(l, Properties.factory('ai'));
         return m;
     }

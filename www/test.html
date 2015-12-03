@@ -1,56 +1,106 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <title>Alan</title>
+<script type="text/javascript" src="js/data/gzip.min.js"></script>
+<script type="text/javascript" src="js/data/gunzip.min.js"></script>
+    </head>
+    <body>
 
-<!doctype html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8" />
-	<title>Move to click</title>
-	<script type="text/javascript" src="js/phaser.min.js"></script>
-    <style type="text/css">
-        body {
-            margin: 0;
-        }
-    </style>
-</head>
-<body>
 
-<script type="text/javascript">
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script type="text/javascript">
+		function waitForSocketConnection(socket, callback){
+		    var timer = 0;
+		    setTimeout(
+		        function () {
+		            if (socket.readyState === 1) {
+		                if(callback != null){
+		                    callback();
+		                }
+		                return;
 
-var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: create });
+		            } else {
+		                console.log("wait for connection... state:" + socket.readyState);
+		                timer+=5;
+		                    waitForSocketConnection(socket, callback);
+		            }
 
-function preload() {
+		        }, 5);
+		}
 
-    game.load.image('arrow', 'assets/sprites/arrow.png');
+        window.onload = function() {
+			var ws = new WebSocket("ws://arturg.co.uk:9090/ws");
+            ws.binaryType = 'arraybuffer';
+            ws.onmessage = function(evt) {
+                console.log(evt);
+            }
 
-}
-
-var sprite;
-var tween;
-
-function create() {
-
-    sprite = game.add.sprite(32, 32, 'arrow');
-    sprite.anchor.setTo(0.5, 0.5);
-    game.input.onDown.add(moveSprite, this);
-
-}
-
-function moveSprite (pointer) {
-
-    if (tween && tween.isRunning)
-    {
-        tween.stop();
+            function utf8_to_b64( str ) {
+        return window.btoa(unescape(encodeURIComponent( str )));
     }
 
-    sprite.rotation = game.physics.arcade.angleToPointer(sprite, pointer);
+    function b64_to_utf8( str ) {
+        return decodeURIComponent(escape(window.atob( str )));
+    }
+		// function convertDataURIToBinary(dataURI) {
+		//   var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+		//   var base64 = dataURI.substring(base64Index);
+		//   var raw = window.atob(base64);
+		//   var rawLength = raw.length;
+		//   var array = new Uint8Array(new ArrayBuffer(rawLength));
+        //
+		//   for(i = 0; i < rawLength; i++) {
+		//     array[i] = raw.charCodeAt(i);
+		//   }
+		//   return array;
+		// }
 
-    //  300 = 300 pixels per second = the speed the sprite will move at, regardless of the distance it has to travel
-    //var duration = (game.physics.arcade.distanceToPointer(sprite, pointer) / 300) * 1000;
+			waitForSocketConnection(ws, function(){
+				 var messageData = '{"@object":"Message","gid":"44981218-692f-112c-85d8-9789b7b03750","id":"art0.718","action":"login","location":{"@object":"Loc","gid":"271f8f91-6111-82cd-5cca-3ec8c3779867","x":1400,"y":400},"properties":{"@object":"Properties","gid":"d6e91d55-13a6-dd66-0b3b-3243ede1ca81","turnRate":3,"speed":60,"breakingForce":80,"object":"ship","currentHull":140,"currentShield":250,"maxHull":140,"maxShield":250,"type":"player"},"weapons":[{"@object":"WeaponProperties","gid":"dc08e55d-387e-f93e-1c2e-f45688b43890","damageShield":3,"damageHull":3,"name":"Projectile Turrent","type":"projectile","range":10,"multiple":10,"gfx":"bullet","fireRate":100,"fireDuration":500,"lifespan":1000,"speed":300,"turnRate":0},{"@object":"WeaponProperties","gid":"d37cd6d7-5490-f0fb-451d-e2c28e5f6534","damageShield":20,"damageHull":15,"name":"Missile Turrent","type":"missile","gfx":"missile","range":15,"multiple":1,"fireRate":1000,"fireDuration":1100,"lifespan":3000,"speed":100,"turnRate":5}]}';
+				// var buf = new ArrayBuffer(messageData.length);
+				// var byteArray = new Uint8Array(buf);
+				// for (var i=0, strLen = messageData.length; i < strLen; i++) {
+				//   byteArray[i] = messageData.charCodeAt(i);
+				// }
+                //var gunzip = new Zlib.Gunzip(byteArray);
+                // Decode base64 (convert ascii to binary)
+                console.log(1);
+                // var compressedJSON = JSONC.pack(messageData);
+                // console.log(JSON.stringify(compressedJSON).length);
+                // console.log(JSON.stringify(messageData).length);
 
-    tween = game.add.tween(sprite).to({ x: pointer.x, y: pointer.y }, duration, Phaser.Easing.Linear.None, true);
+                var gzip = new Zlib.Gzip(messageData);
+                var compressed = gzip.compress();
+                console.log(compressed.length);
+                console.log(btoa(compressed));
 
-}
+                var a = btoa(compressed);
 
-</script>
+                console.log(atob(a).length);
+                // var gunzip = new Zlib.Gunzip(compressed);
+                // var plain = gunzip.decompress();
+            //    console.log(compressed);
+                // var strData     = atob('AAasdBB');
+                // console.log(strData);
+            //    var co   mpressed = deflate.compress();
+            //    console.log(compressed);
+            //    console.log(strData);
 
-</body>
+	            ws.send(a);
+	        });
+
+        }
+
+        </script>
+
+
+
+    </body>
 </html>

@@ -16,6 +16,8 @@ class Player   {
 
         // follow this player
         game.camera.follow(this.ship);
+
+        this.createInterface();
     }
 
     moveToPointer(pointer) {
@@ -28,6 +30,13 @@ class Player   {
 
     }
 
+    createInterface() {
+        var button = game.add.button(10, 10, 'button', this.ship.sendFire, this.ship);
+        button.scale.set(0.8);
+        button.fixedToCamera = true;
+
+
+    }
     // game.input.onTap.add(function(e){
     //     if (Math.floor(e.x/(this.game.width/2)) === LEFT) {
     //         //do left stuff

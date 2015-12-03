@@ -88,6 +88,23 @@ var Serializer = (function () {
     };
     return Serializer;
 })();
+var ItemProperties = (function (_super) {
+    __extends(ItemProperties, _super);
+    function ItemProperties() {
+        _super.apply(this, arguments);
+        this.modDamageHull = 0;
+        this.modDamageShield = 0;
+        this.modSpeed = 0;
+    }
+    ItemProperties.createWarpDrive = function () {
+        var ip = new ItemProperties();
+        ip.name = 'Warp Drive Mk1';
+        ip.modSpeed = 500;
+        ip.type = "warpDrive";
+        return ip;
+    };
+    return ItemProperties;
+})(Serializer);
 var WeaponProperties = (function (_super) {
     __extends(WeaponProperties, _super);
     function WeaponProperties() {
@@ -182,6 +199,18 @@ var Message = (function (_super) {
     Message.prototype.setId = function (id) {
         this.id = id;
     };
+    Message.prototype.addItem = function (item) {
+        if (this.items == null) {
+            this.items = [];
+        }
+        this.items.push(item);
+    };
+    Message.prototype.addWeapon = function (weapon) {
+        if (this.weapons == null) {
+            this.weapons = [];
+        }
+        this.weapons.push(weapon);
+    };
     Message.prototype.addPlayer = function (location, properties) {
         this.action = 'create';
         this.location = location;
@@ -211,12 +240,6 @@ var Message = (function (_super) {
     Message.prototype.setProperties = function (properties) {
         this.action = 'properties';
         this.properties = properties;
-    };
-    Message.prototype.addWeapon = function (weapon) {
-        if (this.weapons == null) {
-            this.weapons = [];
-        }
-        this.weapons.push(weapon);
     };
     Message.prototype.setDestroy = function () {
         this.action = 'destroy';
