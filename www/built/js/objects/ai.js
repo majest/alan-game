@@ -34,4 +34,4 @@ var AiHandler = (function () {
         return m;
     };
     return AiHandler;
-})();
+}());

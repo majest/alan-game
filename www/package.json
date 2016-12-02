@@ -1,0 +1,24 @@
+{
+  "name": "www",
+  "version": "1.0.0",
+  "description": "This is my attempt in creating multiplayer space game based on [phaser.io](http://phaser.io/) and one of the examples provided. I refactored the example so it can handle multiplayer",
+  "main": "main.js",
+  "dependencies": {
+    "http-server": "^0.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/majest/alan-game.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/majest/alan-game/issues"
+  },
+  "homepage": "https://github.com/majest/alan-game#readme"
+}

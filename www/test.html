@@ -36,7 +36,7 @@
 		}
 
         window.onload = function() {
-			var ws = new WebSocket("ws://arturg.co.uk:9090/ws");
+			var ws = new WebSocket("ws://localhost:9090/ws");
             ws.binaryType = 'arraybuffer';
             ws.onmessage = function(evt) {
                 console.log(evt);

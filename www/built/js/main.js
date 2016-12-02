@@ -1,3 +1,8 @@
+/// <reference path="phaser/typescript/phaser.d.ts" />
+/// <reference path="objects/controll.ts"/>
+/// <reference path="objects/player.ts"/>
+/// <reference path="objects/message.ts"/>
+/// <reference path="objects/transport.ts"/>
 var game;
 var firstRunLandscape;
 var playerId;
@@ -15,16 +20,25 @@ var Game = (function () {
         console.log('==========  window width: ' + winWidth);
         console.log('==========  window height: ' + winHeight);
         game = new Phaser.Game(Game.resx, Math.ceil(Game.resx / Game.gameRatio), Phaser.CANVAS, 'phaser');
+        //game = new Phaser.Game(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio, Phaser.AUTO, 'phaser');
         game.state.add('setup', Setup);
         game.state.start('setup');
     }
     Game.resx = 1000;
     return Game;
-})();
+}());
 var Setup = (function () {
     function Setup() {
     }
     Setup.prototype.render = function () {
+        // add currents player sprite info
+        // var currentPLayer = this.actionHandler.getPlayers().getCurrentPlayer();
+        // if (currentPLayer) {
+        //     //game.debug.spriteInfo(currentPLayer.ship, 32, 128);
+        // }
+        // addcamera info
+        //game.debug.cameraInfo(game.camera, 32, 32);
+        // add fps
         game.debug.text(game.time.fps + ' FPS', 400, 32);
     };
     Setup.prototype.preload = function () {
@@ -47,6 +61,7 @@ var Setup = (function () {
     };
     Setup.prototype.create = function () {
         console.log('Creating world');
+        //    game.plugins.add(Phaser.Plugin.Debug);
         game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
         game.physics.startSystem(Phaser.Physics.ARCADE);
         game.world.setBounds(0, 0, 20000000, 20000000);
@@ -57,9 +72,14 @@ var Setup = (function () {
         transporter = new MessageTransport(this.actionHandler);
         this.actionHandler.createPlayer();
         this.ready = true;
+        // var button = game.add.button(10, 10, 'button', this.fire, this);
+        // button.scale.set(0.8);
+        // button.fixedToCamera = true;
     };
     Setup.prototype.fire = function () {
+        //    Ship.Broadcast.Fire(playerId);
     };
+    //update the state
     Setup.prototype.update = function () {
         var groupOfShips = this.actionHandler.getUpdateGroups();
         if (!this.ready || groupOfShips.length == 0)
@@ -73,7 +93,7 @@ var Setup = (function () {
         }
     };
     return Setup;
-})();
+}());
 var Background = (function () {
     function Background() {
         this.space1 = game.add.tileSprite(0, 0, Game.resx, Math.ceil(Game.resx * Game.gameRatio), 'space1');
@@ -90,6 +110,7 @@ var Background = (function () {
         var ss = game.add.sprite(1800, 400, "spacestation1");
         ss.scale.set(0.5);
         ss.anchor.setTo(0.5, 0.5);
+        //planet.scale.set(scale);
     }
     Background.prototype.update = function (player) {
         if (!game.camera.atLimit.x) {
@@ -102,7 +123,30 @@ var Background = (function () {
         }
     };
     return Background;
-})();
+}());
+//
+// String.prototype.hexEncode = function(){
+//     var hex, i;
+//
+//     var result = "";
+//     for (i=0; i<this.length; i++) {
+//         hex = this.charCodeAt(i).toString(16);
+//         result += ("000"+hex).slice(-4);
+//     }
+//
+//     return result
+// }
+//
+// String.prototype.hexDecode = function(){
+//     var j;
+//     var hexes = this.match(/.{1,4}/g) || [];
+//     var back = "";
+//     for(j = 0; j<hexes.length; j++) {
+//         back += String.fromCharCode(parseInt(hexes[j], 16));
+//     }
+//
+//     return back;
+// }
 var ActionHandler = (function () {
     function ActionHandler() {
         this._score = 0;
@@ -131,6 +175,7 @@ var ActionHandler = (function () {
         message.logIn(loc, Properties.factory());
         message.addWeapon(p);
         message.addWeapon(m);
+        //message.addItem(wd);
         transporter.sendMessage(message);
     };
     ActionHandler.prototype.broadCast = function () {
@@ -148,12 +193,15 @@ var ActionHandler = (function () {
     };
     ActionHandler.prototype.handleMessage = function (message) {
         console.log('ActionHandler::handleMessage - ' + message.action);
+        // login detected
         if (message.action == 'login') {
             console.log('ActionHandler::handleMessage - ' + message.id + ' just logged in');
             console.log(message);
             var ship = new Ship.Ship(game, message.location.x, message.location.y, message.id);
+            //var ship = new Phaser.Sprite(game, 100, 100, 'ship');
             game.add.existing(ship);
             this.ships.add(ship);
+            // this is us, tale controll over the ship
             if (message.id == playerId) {
                 console.log('ActionHandler::handleMessage - oh it\'s us. take the ship');
                 player.takeControllOver(ship);
@@ -170,6 +218,7 @@ var ActionHandler = (function () {
             game.add.existing(ship);
             this.ships.add(ship);
         }
+        // handle message async, it will handle stuff like location and destination
         this.ships.forEach(function (ship) {
             ship.handleMessage(message);
         }, this);
@@ -198,7 +247,7 @@ var ActionHandler = (function () {
     };
     ActionHandler._instance = new ActionHandler();
     return ActionHandler;
-})();
+}());
 function goFullScreen() {
     game.gofullScreen();
 }

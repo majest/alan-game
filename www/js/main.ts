@@ -2,7 +2,7 @@
 /// <reference path="objects/controll.ts"/>
 /// <reference path="objects/player.ts"/>
 /// <reference path="objects/message.ts"/>
-
+/// <reference path="objects/transport.ts"/>
 var game;
 var firstRunLandscape;
 var playerId;

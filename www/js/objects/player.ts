@@ -158,11 +158,16 @@ module Ship {
 
     }
 
+    export class WarpDestination {
+      x : number;
+      y : number;
+    }
+
     export class WarpDrive {
 
         ship;
-        properties;
-        warpDestination: Object;
+        itemProperties;
+        warpDestination:  WarpDestination;
 
         constructor(ship, itemProperties) {
             this.ship = ship;

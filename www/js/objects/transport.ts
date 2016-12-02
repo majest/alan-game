@@ -8,7 +8,7 @@ class Connection {
     constructor(transporter: MessageTransport) {
         if (window['WebSocket']) {
             console.log('Connecting');
-            this.conn = new WebSocket("ws://arturg.co.uk:9090/ws");
+            this.conn = new WebSocket("ws://localhost:9090/ws");
             this.conn.binaryType = 'blob';
             this.conn.onclose = function(evt) {
                 console.log('Connection closed');

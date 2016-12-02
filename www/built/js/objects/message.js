@@ -1,3 +1,7 @@
+/**
+* Message container
+* has action which defines the type of the message
+*/
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
@@ -46,6 +50,7 @@ var Serializer = (function () {
         return (results && results.length > 1) ? results[1] : "";
     };
     Serializer.load = function (json) {
+        //var input = JSON.parse(json);
         console.log('loading ' + json['@object']);
         var object = Serializer.getObjectByName(json['@object']);
         for (var k in json) {
@@ -87,7 +92,7 @@ var Serializer = (function () {
         return null;
     };
     return Serializer;
-})();
+}());
 var ItemProperties = (function (_super) {
     __extends(ItemProperties, _super);
     function ItemProperties() {
@@ -104,7 +109,7 @@ var ItemProperties = (function (_super) {
         return ip;
     };
     return ItemProperties;
-})(Serializer);
+}(Serializer));
 var WeaponProperties = (function (_super) {
     __extends(WeaponProperties, _super);
     function WeaponProperties() {
@@ -145,7 +150,7 @@ var WeaponProperties = (function (_super) {
         return weapon;
     };
     return WeaponProperties;
-})(Serializer);
+}(Serializer));
 var Properties = (function (_super) {
     __extends(Properties, _super);
     function Properties() {
@@ -190,7 +195,7 @@ var Properties = (function (_super) {
         return properties;
     };
     return Properties;
-})(Serializer);
+}(Serializer));
 var Message = (function (_super) {
     __extends(Message, _super);
     function Message() {
@@ -244,6 +249,11 @@ var Message = (function (_super) {
     Message.prototype.setDestroy = function () {
         this.action = 'destroy';
     };
+    // setMovement(movement: Movement) {
+    //     this.action = 'move';
+    //     this.movement = movement;
+    //     this.properties = new Properties();
+    // }
     Message.prototype.hasDestination = function () {
         if (typeof this.destination !== 'undefined') {
             return true;
@@ -251,7 +261,10 @@ var Message = (function (_super) {
         return false;
     };
     return Message;
-})(Serializer);
+}(Serializer));
+/**
+* Generic location class containg coordinates
+*/
 var Loc = (function (_super) {
     __extends(Loc, _super);
     function Loc() {
@@ -278,7 +291,10 @@ var Loc = (function (_super) {
         this.velocityy = velocityy;
     };
     return Loc;
-})(Serializer);
+}(Serializer));
+/**
+ Defines whether movement occurs
+**/
 var Movement = (function (_super) {
     __extends(Movement, _super);
     function Movement() {
@@ -289,4 +305,4 @@ var Movement = (function (_super) {
         this.rotating = false;
     }
     return Movement;
-})(Serializer);
+}(Serializer));
